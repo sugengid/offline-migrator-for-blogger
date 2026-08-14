@@ -46,8 +46,8 @@ The plugin ships with a `languages/` folder containing the `.pot` template and a
 
 | | |
 |---|---|
-| Step 1: upload the Takeout archive | Step 2: choose blog and permalink mode |
-| Step 3: run the migration with live progress | Migration report and redirect export |
+| ![Step 1: upload the Takeout archive](screenshots/screenshot-1.png) | ![Step 2: choose blog and permalink mode](screenshots/screenshot-2.png) |
+| ![Step 3: run the migration with live progress](screenshots/screenshot-3.png) | ![Migration report and redirect export](screenshots/screenshot-4.png) |
 
 ## License
 
