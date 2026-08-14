@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class BM_Bootstrap {
 	public static function init() {
-		load_plugin_textdomain( 'bloggermigrator', false, dirname( plugin_basename( BM_PLUGIN_DIR . 'bloggermigrator.php' ) ) . '/languages' );
+		load_plugin_textdomain( 'bloggermigrator', false, dirname( plugin_basename( BM_PLUGIN_DIR . 'bloggermigrator.php' ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Bundled translations for non-w.org installs; w.org loads its own automatically.
 
 		require_once BM_PLUGIN_DIR . 'includes/class-bm-parser.php';
 		require_once BM_PLUGIN_DIR . 'includes/class-bm-blocks.php';

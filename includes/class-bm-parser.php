@@ -20,6 +20,7 @@ class BM_Parser {
 	 */
 	public function parse( $file_path ) {
 		if ( ! is_readable( $file_path ) ) {
+			/* translators: %s: absolute path of the feed file. */
 			return new WP_Error( 'bm_feed_unreadable', sprintf( __( 'File feed tidak bisa dibaca: %s', 'bloggermigrator' ), $file_path ) );
 		}
 

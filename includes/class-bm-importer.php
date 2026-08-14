@@ -206,7 +206,7 @@ class BM_Importer {
 	private function resolve_comment_parents() {
 		global $wpdb;
 
-		$pending = $wpdb->get_results(
+		$pending = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT cm.comment_id, cm.meta_value AS reply_to
 			FROM {$wpdb->commentmeta} cm
 			INNER JOIN {$wpdb->comments} c ON c.comment_ID = cm.comment_id
@@ -218,7 +218,7 @@ class BM_Importer {
 			if ( ! $parent_id ) {
 				continue;
 			}
-			$wpdb->update(
+			$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Write with explicit format/where arrays; the comments API has no bulk parent resolver.
 				$wpdb->comments,
 				array( 'comment_parent' => $parent_id ),
 				array( 'comment_ID' => $row->comment_id ),
@@ -241,7 +241,7 @@ class BM_Importer {
 		if ( '' === $source_id ) {
 			return 0;
 		}
-		return (int) $wpdb->get_var(
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id' AND meta_value = %s LIMIT 1",
 				$source_id
@@ -260,7 +260,7 @@ class BM_Importer {
 		if ( '' === $source_id ) {
 			return 0;
 		}
-		return (int) $wpdb->get_var(
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
 				"SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = '_bm_source_id' AND meta_value = %s LIMIT 1",
 				$source_id

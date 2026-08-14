@@ -63,7 +63,7 @@ class BM_Redirect {
 	public static function refresh_mode_a_rules() {
 		global $wpdb;
 
-		$rows = $wpdb->get_results(
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT p.ID, p.post_date, m.meta_value AS filename
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
@@ -104,7 +104,7 @@ class BM_Redirect {
 
 		global $wpdb;
 
-		return (int) $wpdb->get_var(
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = '_bm_filename' AND meta_value <> ''"
 		);
 	}
@@ -275,7 +275,7 @@ class BM_Redirect {
 		if ( 'a' === get_option( self::OPTION_MODE, '' ) ) {
 			// Mode A: post mempertahankan URL asli, hanya halaman yang berubah.
 			$map  = array();
-			$rows = $wpdb->get_results(
+			$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 				"SELECT p.ID, m.meta_value AS filename
 				FROM {$wpdb->posts} p
 				INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
@@ -294,7 +294,7 @@ class BM_Redirect {
 		}
 
 		$map  = array();
-		$rows = $wpdb->get_results(
+		$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT p.ID, m.meta_value AS filename
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
@@ -322,7 +322,7 @@ class BM_Redirect {
 	public static function slug_conflicts() {
 		global $wpdb;
 
-		$slugs = $wpdb->get_col(
+		$slugs = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT DISTINCT p.post_name
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_bm_source_id'

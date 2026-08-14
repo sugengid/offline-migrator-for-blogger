@@ -313,7 +313,7 @@ class BM_Media {
 	 */
 	private function get_imported_post_ids() {
 		global $wpdb;
-		$ids = $wpdb->get_col(
+		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id'"
 		);
 		return array_map( 'intval', $ids );
@@ -514,7 +514,7 @@ class BM_Media {
 
 		$filetype = wp_check_filetype( $this->fname( $url ) );
 		if ( empty( $filetype['type'] ) || 0 !== strpos( $filetype['type'], 'image/' ) ) {
-			@unlink( $tmp );
+			wp_delete_file( $tmp );
 			$stats['import_errors'][ $url ] = __( 'File hasil unduhan bukan gambar yang didukung.', 'bloggermigrator' );
 			return;
 		}
@@ -527,7 +527,7 @@ class BM_Media {
 			0
 		);
 		if ( is_wp_error( $attachment_id ) ) {
-			@unlink( $tmp );
+			wp_delete_file( $tmp );
 			$stats['import_errors'][ $url ] = sprintf(
 				/* translators: %s: sideload error message */
 				__( 'Gagal menyimpan ke media library: %s', 'bloggermigrator' ),
@@ -589,7 +589,7 @@ class BM_Media {
 	 */
 	private function attachment_for_source_url( $url ) {
 		global $wpdb;
-		return (int) $wpdb->get_var(
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_url' AND meta_value = %s LIMIT 1",
 				$url
@@ -627,7 +627,7 @@ class BM_Media {
 		if ( isset( $this->file_attachments[ $path ] ) ) {
 			return $this->file_attachments[ $path ];
 		}
-		$attachment_id = (int) $wpdb->get_var(
+		$attachment_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_file' AND meta_value = %s LIMIT 1",
 				$path

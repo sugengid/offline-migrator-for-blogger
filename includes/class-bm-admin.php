@@ -209,7 +209,7 @@ class BM_Admin {
 							printf(
 								/* translators: %d: upload size limit in MB */
 								esc_html__( 'Batas upload server saat ini: %d MB. Arsip yang lebih besar akan ditolak PHP sebelum sempat diproses.', 'bloggermigrator' ),
-								$limit_mb
+								intval( $limit_mb )
 							);
 							?>
 						</p>
@@ -500,7 +500,7 @@ class BM_Admin {
 	public static function handle_export() {
 		self::verify_manager_request( 'bm_export_redirects' );
 
-		$format = isset( $_GET['format'] ) && 'json' === $_GET['format'] ? 'json' : 'csv';
+		$format = isset( $_GET['format'] ) && 'json' === $_GET['format'] ? 'json' : 'csv'; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.NonceVerification.Recommended -- Nonce verified in self::verify_manager_request() above.
 		$rows   = BM_Redirect::export_rows();
 
 		nocache_headers();
@@ -526,7 +526,7 @@ class BM_Admin {
 		foreach ( $rows as $row ) {
 			fputcsv( $out, array( $row[0], $row[1], '0', '301' ), ',', '"', '' );
 		}
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Streamed CSV to php://output; WP_Filesystem cannot write to output streams.
 		exit;
 	}
 }

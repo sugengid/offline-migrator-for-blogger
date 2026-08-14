@@ -62,7 +62,7 @@ class BM_Ajax {
 	private static function extend_limits() {
 		$disabled = (string) ini_get( 'disable_functions' );
 		if ( function_exists( 'set_time_limit' ) && false === strpos( $disabled, 'set_time_limit' ) ) {
-			@set_time_limit( 300 );
+			@set_time_limit( 300 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Intentional: give long migrations extra headroom when ini allows.
 		}
 		wp_raise_memory_limit( 'admin' );
 	}
@@ -75,7 +75,7 @@ class BM_Ajax {
 		self::verify_request();
 		self::extend_limits();
 
-		$path_input = isset( $_POST['takeout_path'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['takeout_path'] ) ) ) : '';
+		$path_input = isset( $_POST['takeout_path'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['takeout_path'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 		if ( '' !== $path_input ) {
 			if ( ! apply_filters( 'bm_allow_path_input', false ) ) {
 				wp_send_json_error( array( 'message' => __( 'Input path dinonaktifkan.', 'bloggermigrator' ) ), 403 );
@@ -87,15 +87,16 @@ class BM_Ajax {
 			self::respond_source( 'abs', $root, $root );
 		}
 
-		if ( empty( $_FILES['bm_zip'] ) || ! isset( $_FILES['bm_zip']['error'] ) || UPLOAD_ERR_OK !== $_FILES['bm_zip']['error'] ) {
+		if ( empty( $_FILES['bm_zip'] ) || ! isset( $_FILES['bm_zip']['error'] ) || UPLOAD_ERR_OK !== $_FILES['bm_zip']['error'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 			wp_send_json_error( array( 'message' => __( 'Upload gagal. Periksa batas upload PHP dan ukuran file.', 'bloggermigrator' ) ) );
 		}
 
-		$file = $_FILES['bm_zip'];
+		$file = $_FILES['bm_zip']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in self::verify_request(); archive handled by wp_handle_upload().
 
 		$max_mb = (int) apply_filters( 'bm_max_zip_mb', 512 );
 		if ( $file['size'] > $max_mb * MB_IN_BYTES ) {
 			wp_send_json_error(
+				/* translators: %d: maximum upload size in MB. */
 				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'bloggermigrator' ), $max_mb ) )
 			);
 		}
@@ -147,7 +148,14 @@ class BM_Ajax {
 		// jadi file upload distandardkan ke source.zip atau source.tgz.
 		$source_ext  = 'gz' === $extension ? 'tgz' : $extension;
 		$source_path = $work . '/source.' . $source_ext;
-		if ( ! rename( $uploaded['file'], $source_path ) ) {
+		WP_Filesystem();
+		global $wp_filesystem;
+		$moved = ( $wp_filesystem && $wp_filesystem->move( $uploaded['file'], $source_path ) );
+		if ( ! $moved ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Fallback when WP_Filesystem is unavailable.
+			$moved = rename( $uploaded['file'], $source_path );
+		}
+		if ( ! $moved ) {
 			self::cleanup_work_dir( $work );
 			wp_send_json_error( array( 'message' => __( 'Gagal memindahkan file upload.', 'bloggermigrator' ) ) );
 		}
@@ -184,7 +192,7 @@ class BM_Ajax {
 				wp_send_json_error( array( 'message' => __( 'Arsip tgz tidak bisa diekstrak (korup atau format tidak didukung). Unduh ulang file Takeout lalu coba lagi.', 'bloggermigrator' ) ) );
 			}
 		}
-		@unlink( $source_path );
+		wp_delete_file( $source_path );
 
 		$rel = ltrim( substr( $extract, strlen( trailingslashit( $upload_dir['basedir'] ) ) ), '/' );
 		self::respond_source( 'uploads', $rel, $extract );
@@ -198,12 +206,12 @@ class BM_Ajax {
 	 * @return string|false 'zip', 'tgz', or false when unrecognized.
 	 */
 	private static function archive_format( $path ) {
-		$handle = fopen( $path, 'rb' );
+		$handle = fopen( $path, 'rb' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Streaming 2-byte header read; WP_Filesystem::get_contents() would buffer the whole archive.
 		if ( ! $handle ) {
 			return false;
 		}
-		$magic = fread( $handle, 2 );
-		fclose( $handle );
+		$magic = fread( $handle, 2 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- See fopen note above.
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
 		if ( 'PK' === $magic ) {
 			return 'zip';
 		}
@@ -391,7 +399,7 @@ class BM_Ajax {
 		self::verify_request();
 		self::extend_limits();
 
-		$action = isset( $_POST['step_action'] ) ? sanitize_key( $_POST['step_action'] ) : '';
+		$action = isset( $_POST['step_action'] ) ? sanitize_key( $_POST['step_action'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 		switch ( $action ) {
 			case 'start':
 				self::step_start();
@@ -421,11 +429,11 @@ class BM_Ajax {
 		self::verify_request();
 		self::extend_limits();
 
-		$blog      = isset( $_POST['blog'] ) ? sanitize_text_field( wp_unslash( $_POST['blog'] ) ) : '';
-		$type      = isset( $_POST['source_type'] ) ? sanitize_key( $_POST['source_type'] ) : '';
-		$rel       = isset( $_POST['source_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['source_rel'] ) ) : '';
-		$path      = isset( $_POST['source_path'] ) ? sanitize_text_field( wp_unslash( $_POST['source_path'] ) ) : '';
-		$blogs_rel = isset( $_POST['blogs_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['blogs_rel'] ) ) : '';
+		$blog      = isset( $_POST['blog'] ) ? sanitize_text_field( wp_unslash( $_POST['blog'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$type      = isset( $_POST['source_type'] ) ? sanitize_key( $_POST['source_type'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$rel       = isset( $_POST['source_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['source_rel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$path      = isset( $_POST['source_path'] ) ? sanitize_text_field( wp_unslash( $_POST['source_path'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$blogs_rel = isset( $_POST['blogs_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['blogs_rel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 
 		$root = self::resolve_source_root( $type, $rel, $path );
 		if ( is_wp_error( $root ) ) {
@@ -500,15 +508,15 @@ class BM_Ajax {
 	 * Create a fresh job from the wizard configuration.
 	 */
 	private static function step_start() {
-		$blog           = isset( $_POST['blog'] ) ? sanitize_text_field( wp_unslash( $_POST['blog'] ) ) : '';
-		$mode           = isset( $_POST['mode'] ) ? sanitize_key( $_POST['mode'] ) : '';
-		$media_album    = ! empty( $_POST['media_album'] ) ? 1 : 0;
-		$media_external = ! empty( $_POST['media_external'] ) ? 1 : 0;
-		$to_blocks      = ! empty( $_POST['to_blocks'] ) ? 1 : 0;
-		$type           = isset( $_POST['source_type'] ) ? sanitize_key( $_POST['source_type'] ) : '';
-		$rel            = isset( $_POST['source_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['source_rel'] ) ) : '';
-		$path           = isset( $_POST['source_path'] ) ? sanitize_text_field( wp_unslash( $_POST['source_path'] ) ) : '';
-		$blogs_rel      = isset( $_POST['blogs_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['blogs_rel'] ) ) : '';
+		$blog           = isset( $_POST['blog'] ) ? sanitize_text_field( wp_unslash( $_POST['blog'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$mode           = isset( $_POST['mode'] ) ? sanitize_key( $_POST['mode'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$media_album    = ! empty( $_POST['media_album'] ) ? 1 : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$media_external = ! empty( $_POST['media_external'] ) ? 1 : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$to_blocks      = ! empty( $_POST['to_blocks'] ) ? 1 : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$type           = isset( $_POST['source_type'] ) ? sanitize_key( $_POST['source_type'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$rel            = isset( $_POST['source_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['source_rel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$path           = isset( $_POST['source_path'] ) ? sanitize_text_field( wp_unslash( $_POST['source_path'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$blogs_rel      = isset( $_POST['blogs_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['blogs_rel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 
 		if ( ! in_array( $mode, array( 'a', 'b' ), true ) ) {
 			wp_send_json_error( array( 'message' => __( 'Mode permalink tidak valid.', 'bloggermigrator' ) ) );
@@ -522,6 +530,7 @@ class BM_Ajax {
 		$feed = self::feed_path( $root, $blogs_rel, $blog );
 		if ( ! $feed ) {
 			wp_send_json_error(
+				/* translators: %s: blog folder name. */
 				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Pilih blog lain atau periksa isi zip Takeout.', 'bloggermigrator' ), $blog ) )
 			);
 		}
@@ -581,6 +590,7 @@ class BM_Ajax {
 		wp_send_json_success(
 			self::job_status(
 				$job,
+				/* translators: 1: number of feed entries, 2: blog name. */
 				array( sprintf( __( 'Job dimulai: %1$d entry feed untuk blog "%2$s".', 'bloggermigrator' ), count( $items ), $blog ) )
 			)
 		);
@@ -653,6 +663,7 @@ class BM_Ajax {
 		$job['cursor']                       += count( $slice );
 
 		$log[] = sprintf(
+			/* translators: 1: processed entries, 2: total entries, 3: new in this batch, 4: skipped in this batch. */
 			__( 'Konten: %1$d/%2$d entry diproses (batch: %3$d baru, %4$d dilewati).', 'bloggermigrator' ),
 			min( $job['cursor'], $job['total_items'] ),
 			$job['total_items'],
@@ -721,6 +732,7 @@ class BM_Ajax {
 		$job['cursor']                          += $batch['processed'];
 
 		$log[] = sprintf(
+			/* translators: 1: processed candidates, 2: total candidates, 3: new attachments so far. */
 			__( 'Media: %1$d/%2$d kandidat gambar diproses (total %3$d attachment baru).', 'bloggermigrator' ),
 			min( $job['cursor'], $setup['candidates'] ),
 			$setup['candidates'],
@@ -755,6 +767,7 @@ class BM_Ajax {
 				'urls_replaced' => 0,
 			);
 			$log[] = sprintf(
+				/* translators: %d: number of updated posts. */
 				__( 'Konversi blocks: %1$d konten diupdate.', 'bloggermigrator' ),
 				$updated
 			);
@@ -764,6 +777,7 @@ class BM_Ajax {
 
 			$job['stats']['replace'] = $stats;
 			$log[] = sprintf(
+				/* translators: 1: updated posts, 2: replaced URLs. */
 				__( 'Replace URL: %1$d konten diupdate, %2$d URL diganti.', 'bloggermigrator' ),
 				$stats['posts_updated'],
 				$stats['urls_replaced']
@@ -796,6 +810,7 @@ class BM_Ajax {
 		update_option( BM_Redirect::OPTION_FLUSHED, 1, false );
 
 		$log[] = sprintf(
+			/* translators: %s: redirect mode (A or B). */
 			__( 'Redirect mode %s aktif, rewrite rules di-flush.', 'bloggermigrator' ),
 			strtoupper( $job['mode'] )
 		);
@@ -804,6 +819,7 @@ class BM_Ajax {
 			$conflicts = BM_Redirect::slug_conflicts();
 			if ( ! empty( $conflicts ) ) {
 				$log[] = sprintf(
+					/* translators: 1: number of conflicting slugs, 2: comma-separated list of conflicting slugs. */
 					__( 'Peringatan: %1$d slug post bentrok dengan halaman statis (%2$s). Halaman menang di routing; redirect tetap dipasang.', 'bloggermigrator' ),
 					count( $conflicts ),
 					implode( ', ', $conflicts )
@@ -828,7 +844,7 @@ class BM_Ajax {
 	private static function build_report( array $job ) {
 		global $wpdb;
 
-		$type_counts = $wpdb->get_results(
+		$type_counts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only report query on a plugin-internal meta key.
 			"SELECT p.post_type, COUNT(*) AS total
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
@@ -837,11 +853,11 @@ class BM_Ajax {
 			OBJECT_K
 		);
 
-		$comments = (int) $wpdb->get_var(
+		$comments = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only report query on a plugin-internal meta key.
 			"SELECT COUNT(*) FROM {$wpdb->commentmeta} WHERE meta_key = '_bm_source_id'"
 		);
 
-		$attachments = (int) $wpdb->get_var(
+		$attachments = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only report query on a plugin-internal meta key.
 			"SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_file'"
 		);
 
@@ -1043,6 +1059,12 @@ class BM_Ajax {
 		if ( ! $base || ! $work || 0 !== strpos( $work, trailingslashit( $base ) ) || ! is_dir( $work ) ) {
 			return;
 		}
+		if ( WP_Filesystem() ) {
+			global $wp_filesystem;
+			$wp_filesystem->delete( $work, true );
+			return;
+		}
+		// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_rmdir, WordPress.WP.AlternativeFunctions.unlink_unlink -- Fallback when WP_Filesystem is unavailable (e.g. FTP-only hosts).
 		$iterator = new RecursiveIteratorIterator(
 			new RecursiveDirectoryIterator( $work, FilesystemIterator::SKIP_DOTS ),
 			RecursiveIteratorIterator::CHILD_FIRST
@@ -1055,6 +1077,7 @@ class BM_Ajax {
 			}
 		}
 		rmdir( $work );
+		// phpcs:enable
 	}
 
 	/**
@@ -1132,6 +1155,7 @@ class BM_Ajax {
 		$feed = self::feed_path( $root, $job['blogs_rel'], $job['blog'] );
 		if ( ! $feed ) {
 			wp_send_json_error(
+				/* translators: %s: blog folder name. */
 				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Folder sumber mungkin sudah berubah.', 'bloggermigrator' ), $job['blog'] ) )
 			);
 		}

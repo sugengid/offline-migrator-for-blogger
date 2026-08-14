@@ -67,7 +67,7 @@ class BM_Blocks {
 	public static function convert_imported_posts() {
 		global $wpdb;
 
-		$ids     = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id'" );
+		$ids     = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 		$updated = 0;
 
 		foreach ( $ids as $post_id ) {
@@ -313,7 +313,7 @@ class BM_Blocks {
 	 */
 	private static function attachment_id_for_url( $url ) {
 		global $wpdb;
-		return (int) $wpdb->get_var(
+		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_url' AND meta_value = %s LIMIT 1",
 				$url
