@@ -1,5 +1,5 @@
-=== BloggerMigrator ===
-Contributors: sugengid
+=== Offline Migrator for Blogger ===
+Contributors: massugeng
 Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.0
@@ -12,9 +12,9 @@ Migrate Blogger to WordPress offline from Google Takeout. Content, images, comme
 
 == Description ==
 
-BloggerMigrator moves a Blogger blog to WordPress using only your Google Takeout backup files. Because everything is read from files, blogs that were deleted or locked can still be migrated.
+Offline Migrator for Blogger moves a Blogger blog to WordPress using only your Google Takeout backup files. Because everything is read from files, blogs that were deleted or locked can still be migrated.
 
-Unlike importers that require your old blog to stay online, BloggerMigrator works fully offline. You download the Takeout archive once, upload it to the wizard, and the plugin does the rest: posts, pages, threaded comments, drafts, labels, images, and 301 redirects.
+Unlike importers that require your old blog to stay online, Offline Migrator for Blogger works fully offline. You download the Takeout archive once, upload it to the wizard, and the plugin does the rest: posts, pages, threaded comments, drafts, labels, images, and 301 redirects.
 
 Key features:
 
@@ -30,9 +30,9 @@ Key features:
 
 == Installation ==
 
-1. Upload the `bloggermigrator` folder to `/wp-content/plugins/`.
+1. Upload the `offline-migrator-for-blogger` folder to `/wp-content/plugins/`.
 2. Activate the plugin through the Plugins menu.
-3. Open the BloggerMigrator menu in your dashboard.
+3. Open the Offline Migrator for Blogger menu in your dashboard.
 4. Upload your Google Takeout archive (zip or tgz), choose the blog and permalink mode, then run the migration.
 
 How to get the Takeout file: open Google Takeout, select the Blogger product, export, then download the archive in zip or tgz format.
@@ -49,7 +49,7 @@ Mode A keeps the original Blogger URL structure (/2026/03/slug.html). Mode B use
 
 = How do redirects keep working after the plugin is removed? =
 
-Download the redirect export (CSV/JSON) from the Export redirect screen and import it into the Redirection plugin. While BloggerMigrator stays active, old URLs are redirected automatically without any extra plugin.
+Download the redirect export (CSV/JSON) from the Export redirect screen and import it into the Redirection plugin. While Offline Migrator for Blogger stays active, old URLs are redirected automatically without any extra plugin.
 
 = Will existing content be deleted? =
 

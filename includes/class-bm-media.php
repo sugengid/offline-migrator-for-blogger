@@ -8,11 +8,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class BM_Media {
+class BMIG_Media {
 
-	const OPTION_MAP = 'bm_img_map';
+	const OPTION_MAP = 'bmig_img_map';
 
-	const OPTION_INVENTORY = 'bm_media_inventory';
+	const OPTION_INVENTORY = 'bmig_media_inventory';
 
 	const IMAGE_EXTENSIONS = array( 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg' );
 
@@ -76,7 +76,7 @@ class BM_Media {
 
 	/**
 	 * Run the full media migration: inventory, attachment import, then content
-	 * replacement. Idempotent via the bm_img_map option and the _bm_source_file
+	 * replacement. Idempotent via the bmig_img_map option and the _bmig_source_file
 	 * attachment meta.
 	 *
 	 * @param string $albums_path Path to the Takeout Albums folder.
@@ -87,7 +87,7 @@ class BM_Media {
 	public function run( $albums_path, $blog_name = '' ) {
 		$albums_path = rtrim( (string) $albums_path, '/\\' );
 		if ( ! is_dir( $albums_path ) ) {
-			return new WP_Error( 'bm_media_no_dir', __( 'Folder album tidak ditemukan.', 'bloggermigrator' ) );
+			return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'offline-migrator-for-blogger' ) );
 		}
 
 		$stats = array(
@@ -133,7 +133,7 @@ class BM_Media {
 	 * the Albums path, builds the file inventory, and resolves the preferred
 	 * album folder. Must be called before import_batch() on the same instance.
 	 * Inventory, candidates, and preferred folder are cached in the
-	 * bm_media_inventory option (autoload off) so later batches skip the
+	 * bmig_media_inventory option (autoload off) so later batches skip the
 	 * directory walk and content scan; the cache is rebuilt when it is missing
 	 * or its key does not match the current job parameters.
 	 *
@@ -171,7 +171,7 @@ class BM_Media {
 		if ( $this->use_album ) {
 			$albums_path = rtrim( (string) $albums_path, '/\\' );
 			if ( ! is_dir( $albums_path ) ) {
-				return new WP_Error( 'bm_media_no_dir', __( 'Folder album tidak ditemukan.', 'bloggermigrator' ) );
+				return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'offline-migrator-for-blogger' ) );
 			}
 
 			$stats = array( 'album_files' => 0 );
@@ -307,14 +307,14 @@ class BM_Media {
 	}
 
 	/**
-	 * Get ids of posts and pages imported from Blogger (marked _bm_source_id).
+	 * Get ids of posts and pages imported from Blogger (marked _bmig_source_id).
 	 *
 	 * @return int[]
 	 */
 	private function get_imported_post_ids() {
 		global $wpdb;
 		$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
-			"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id'"
+			"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_id'"
 		);
 		return array_map( 'intval', $ids );
 	}
@@ -430,7 +430,7 @@ class BM_Media {
 				return;
 			}
 			if ( ! $this->use_external ) {
-				$stats['unmatched'][ $url ] = __( 'Host eksternal, file tidak ada di album.', 'bloggermigrator' );
+				$stats['unmatched'][ $url ] = __( 'Host eksternal, file tidak ada di album.', 'offline-migrator-for-blogger' );
 				return;
 			}
 		}
@@ -457,10 +457,10 @@ class BM_Media {
 		} else {
 			$attachment_id = $this->import_attachment( $path );
 			if ( ! $attachment_id ) {
-				$stats['import_errors'][ $url ] = __( 'Gagal mengimpor file ke media library.', 'bloggermigrator' );
+				$stats['import_errors'][ $url ] = __( 'Gagal mengimpor file ke media library.', 'offline-migrator-for-blogger' );
 				return;
 			}
-			add_post_meta( $attachment_id, '_bm_source_url', $url );
+			add_post_meta( $attachment_id, '_bmig_source_url', $url );
 			$this->file_attachments[ $path ] = $attachment_id;
 			$stats['attachments_created']++;
 		}
@@ -476,7 +476,7 @@ class BM_Media {
 	 * Download one external image URL into the media library. Any host is
 	 * attempted, including blogspot URLs that are still alive; URLs that fail
 	 * to download are recorded as failures. Attachments previously downloaded
-	 * from the same URL are reused via the _bm_source_url meta.
+	 * from the same URL are reused via the _bmig_source_url meta.
 	 *
 	 * @param string $url   Candidate image URL.
 	 * @param array  $stats Running stats, modified by reference.
@@ -498,7 +498,7 @@ class BM_Media {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
 		if ( ! self::is_external_url_safe( $url ) ) {
-			$stats['import_errors'][ $url ] = __( 'URL diblokir: host tidak diizinkan.', 'bloggermigrator' );
+			$stats['import_errors'][ $url ] = __( 'URL diblokir: host tidak diizinkan.', 'offline-migrator-for-blogger' );
 			return;
 		}
 
@@ -506,7 +506,7 @@ class BM_Media {
 		if ( is_wp_error( $tmp ) ) {
 			$stats['import_errors'][ $url ] = sprintf(
 				/* translators: %s: download error message */
-				__( 'Gagal mengunduh: %s', 'bloggermigrator' ),
+				__( 'Gagal mengunduh: %s', 'offline-migrator-for-blogger' ),
 				$tmp->get_error_message()
 			);
 			return;
@@ -515,7 +515,7 @@ class BM_Media {
 		$filetype = wp_check_filetype( $this->fname( $url ) );
 		if ( empty( $filetype['type'] ) || 0 !== strpos( $filetype['type'], 'image/' ) ) {
 			wp_delete_file( $tmp );
-			$stats['import_errors'][ $url ] = __( 'File hasil unduhan bukan gambar yang didukung.', 'bloggermigrator' );
+			$stats['import_errors'][ $url ] = __( 'File hasil unduhan bukan gambar yang didukung.', 'offline-migrator-for-blogger' );
 			return;
 		}
 
@@ -530,13 +530,13 @@ class BM_Media {
 			wp_delete_file( $tmp );
 			$stats['import_errors'][ $url ] = sprintf(
 				/* translators: %s: sideload error message */
-				__( 'Gagal menyimpan ke media library: %s', 'bloggermigrator' ),
+				__( 'Gagal menyimpan ke media library: %s', 'offline-migrator-for-blogger' ),
 				$attachment_id->get_error_message()
 			);
 			return;
 		}
 
-		add_post_meta( $attachment_id, '_bm_source_url', $url );
+		add_post_meta( $attachment_id, '_bmig_source_url', $url );
 		$stats['attachments_created']++;
 
 		$new_url = wp_get_attachment_url( $attachment_id );
@@ -591,7 +591,7 @@ class BM_Media {
 		global $wpdb;
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_url' AND meta_value = %s LIMIT 1",
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_url' AND meta_value = %s LIMIT 1",
 				$url
 			)
 		);
@@ -629,7 +629,7 @@ class BM_Media {
 		}
 		$attachment_id = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_file' AND meta_value = %s LIMIT 1",
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_file' AND meta_value = %s LIMIT 1",
 				$path
 			)
 		);
@@ -676,7 +676,7 @@ class BM_Media {
 			wp_update_attachment_metadata( $attachment_id, $metadata );
 		}
 
-		update_post_meta( $attachment_id, '_bm_source_file', $path );
+		update_post_meta( $attachment_id, '_bmig_source_file', $path );
 		return $attachment_id;
 	}
 

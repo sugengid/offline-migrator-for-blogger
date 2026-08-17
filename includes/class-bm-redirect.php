@@ -7,11 +7,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class BM_Redirect {
+class BMIG_Redirect {
 
-	const OPTION_MODE         = 'bm_permalink_mode';
-	const OPTION_FLUSHED      = 'bm_rewrite_flushed';
-	const OPTION_MODE_A_RULES = 'bm_mode_a_rules';
+	const OPTION_MODE         = 'bmig_permalink_mode';
+	const OPTION_FLUSHED      = 'bmig_rewrite_flushed';
+	const OPTION_MODE_A_RULES = 'bmig_mode_a_rules';
 
 	/**
 	 * Register redirect hooks. Rules are rebuilt from the saved mode on every
@@ -52,7 +52,7 @@ class BM_Redirect {
 
 	/**
 	 * Rebuild the Mode A per-URL rules: one literal rule per published post
-	 * whose _bm_filename path date (YYYY/MM) differs from its post_date.
+	 * whose _bmig_filename path date (YYYY/MM) differs from its post_date.
 	 * post_date is stored in the site timezone, so the comparison uses the
 	 * same timezone on both sides. Posts with matching dates already resolve
 	 * through the permalink structure itself. The result is saved with
@@ -67,7 +67,7 @@ class BM_Redirect {
 			"SELECT p.ID, p.post_date, m.meta_value AS filename
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
-			WHERE m.meta_key = '_bm_filename'
+			WHERE m.meta_key = '_bmig_filename'
 				AND m.meta_value <> ''
 				AND p.post_type = 'post'
 				AND p.post_status = 'publish'"
@@ -81,7 +81,7 @@ class BM_Redirect {
 			if ( substr( $row->post_date, 0, 7 ) === $m[1] . '-' . $m[2] ) {
 				continue;
 			}
-			$rules[ '^' . $m[1] . '/' . $m[2] . '/' . preg_quote( $m[3], '/' ) . '$' ] = 'index.php?bm_redirect_id=' . (int) $row->ID;
+			$rules[ '^' . $m[1] . '/' . $m[2] . '/' . preg_quote( $m[3], '/' ) . '$' ] = 'index.php?bmig_redirect_id=' . (int) $row->ID;
 		}
 
 		update_option( self::OPTION_MODE_A_RULES, $rules, false );
@@ -105,7 +105,7 @@ class BM_Redirect {
 		global $wpdb;
 
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
-			"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = '_bm_filename' AND meta_value <> ''"
+			"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_filename' AND meta_value <> ''"
 		);
 	}
 
@@ -118,9 +118,9 @@ class BM_Redirect {
 			return;
 		}
 
-		add_rewrite_tag( '%bm_redirect_page%', '([^&]+)' );
-		add_rewrite_tag( '%bm_redirect_id%', '(\d+)' );
-		add_rewrite_tag( '%bm_redirect_slug%', '([^&]+)' );
+		add_rewrite_tag( '%bmig_redirect_page%', '([^&]+)' );
+		add_rewrite_tag( '%bmig_redirect_id%', '(\d+)' );
+		add_rewrite_tag( '%bmig_redirect_slug%', '([^&]+)' );
 
 		foreach ( $rules as $regex => $query ) {
 			add_rewrite_rule( $regex, $query, 'top' );
@@ -156,7 +156,7 @@ class BM_Redirect {
 		if ( 'a' === $mode ) {
 			// Mode A mempertahankan URL asli untuk post; halaman statis Blogger
 			// (struktur /p/...) tidak dipertahankan, jadi tetap diarahkan.
-			$rules = array( '^p/([^/]+?)\.html$' => 'index.php?bm_redirect_page=$matches[1]' );
+			$rules = array( '^p/([^/]+?)\.html$' => 'index.php?bmig_redirect_page=$matches[1]' );
 			$saved = get_option( self::OPTION_MODE_A_RULES, array() );
 			if ( is_array( $saved ) ) {
 				$rules = array_merge( $rules, $saved );
@@ -164,9 +164,9 @@ class BM_Redirect {
 			return $rules;
 		}
 
-		$rules = array( '^p/([^/]+?)\.html$' => 'index.php?bm_redirect_page=$matches[1]' );
+		$rules = array( '^p/([^/]+?)\.html$' => 'index.php?bmig_redirect_page=$matches[1]' );
 
-		$rules['^(\d{4}/\d{2}/)?([^/]+?)\.html$'] = 'index.php?bm_redirect_slug=$matches[2]';
+		$rules['^(\d{4}/\d{2}/)?([^/]+?)\.html$'] = 'index.php?bmig_redirect_slug=$matches[2]';
 		return $rules;
 	}
 
@@ -174,14 +174,14 @@ class BM_Redirect {
 	 * Correct the persisted rule set while it is being generated. Rules added
 	 * on init come from the mode saved at request start; after a mid-request
 	 * mode switch the in-memory additions are stale, so drop every query
-	 * carrying our bm_redirect_ marker and prepend the current mode's rules.
+	 * carrying our bmig_redirect_ marker and prepend the current mode's rules.
 	 *
 	 * @param WP_Rewrite $wp_rewrite Rewrite instance, passed by reference.
 	 */
 	public static function fix_rules_on_flush( $wp_rewrite ) {
 		$kept = array();
 		foreach ( (array) $wp_rewrite->rules as $regex => $query ) {
-			if ( false === strpos( $query, 'bm_redirect_' ) ) {
+			if ( false === strpos( $query, 'bmig_redirect_' ) ) {
 				$kept[ $regex ] = $query;
 			}
 		}
@@ -197,9 +197,9 @@ class BM_Redirect {
 	 * @return string[]
 	 */
 	public static function register_query_vars( $vars ) {
-		$vars[] = 'bm_redirect_id';
-		$vars[] = 'bm_redirect_slug';
-		$vars[] = 'bm_redirect_page';
+		$vars[] = 'bmig_redirect_id';
+		$vars[] = 'bmig_redirect_slug';
+		$vars[] = 'bmig_redirect_page';
 		return $vars;
 	}
 
@@ -209,7 +209,7 @@ class BM_Redirect {
 	 * target no longer exists the Blogger pattern is rebuilt as a fallback.
 	 */
 	public static function handle_redirect() {
-		$post_id = (int) get_query_var( 'bm_redirect_id' );
+		$post_id = (int) get_query_var( 'bmig_redirect_id' );
 		if ( $post_id ) {
 			$url = get_permalink( $post_id );
 			if ( $url ) {
@@ -218,7 +218,7 @@ class BM_Redirect {
 			}
 		}
 
-		$slug = get_query_var( 'bm_redirect_slug' );
+		$slug = get_query_var( 'bmig_redirect_slug' );
 		if ( $slug ) {
 			$post = get_page_by_path( $slug, OBJECT, 'post' );
 			$url  = $post ? get_permalink( $post ) : home_url( user_trailingslashit( $slug ) );
@@ -226,7 +226,7 @@ class BM_Redirect {
 			exit;
 		}
 
-		$page_slug = get_query_var( 'bm_redirect_page' );
+		$page_slug = get_query_var( 'bmig_redirect_page' );
 		if ( $page_slug ) {
 			$page = get_page_by_path( $page_slug, OBJECT, 'page' );
 			$url  = $page ? get_permalink( $page ) : home_url( user_trailingslashit( $page_slug ) );
@@ -279,7 +279,7 @@ class BM_Redirect {
 				"SELECT p.ID, m.meta_value AS filename
 				FROM {$wpdb->posts} p
 				INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
-				WHERE m.meta_key = '_bm_filename'
+				WHERE m.meta_key = '_bmig_filename'
 					AND m.meta_value <> ''
 					AND p.post_type = 'page'
 					AND p.post_status = 'publish'"
@@ -298,7 +298,7 @@ class BM_Redirect {
 			"SELECT p.ID, m.meta_value AS filename
 			FROM {$wpdb->posts} p
 			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
-			WHERE m.meta_key = '_bm_filename'
+			WHERE m.meta_key = '_bmig_filename'
 				AND m.meta_value <> ''
 				AND p.post_status = 'publish'"
 		);
@@ -325,7 +325,7 @@ class BM_Redirect {
 		$slugs = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 			"SELECT DISTINCT p.post_name
 			FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_bm_source_id'
+			INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_bmig_source_id'
 			INNER JOIN {$wpdb->posts} pg ON pg.post_name = p.post_name AND pg.post_type = 'page' AND pg.post_status = 'publish'
 			WHERE p.post_type = 'post' AND p.post_status = 'publish'"
 		);

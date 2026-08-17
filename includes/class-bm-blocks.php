@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class BM_Blocks {
+class BMIG_Blocks {
 
 	/**
 	 * Convert an HTML fragment to block markup. Each top-level element maps to
@@ -27,7 +27,7 @@ class BM_Blocks {
 		// The encoding PI keeps multibyte characters intact; the wrapper div
 		// gives the fragment a single root to iterate.
 		$loaded   = $dom->loadHTML(
-			'<?xml encoding="UTF-8"?><div id="bm-block-root">' . $html . '</div>',
+			'<?xml encoding="UTF-8"?><div id="bmig-block-root">' . $html . '</div>',
 			LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
 		);
 		libxml_clear_errors();
@@ -39,7 +39,7 @@ class BM_Blocks {
 
 		$root = null;
 		foreach ( $dom->childNodes as $node ) {
-			if ( $node instanceof DOMElement && 'bm-block-root' === $node->getAttribute( 'id' ) ) {
+			if ( $node instanceof DOMElement && 'bmig-block-root' === $node->getAttribute( 'id' ) ) {
 				$root = $node;
 				break;
 			}
@@ -67,7 +67,7 @@ class BM_Blocks {
 	public static function convert_imported_posts() {
 		global $wpdb;
 
-		$ids     = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
+		$ids     = $wpdb->get_col( "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_id'" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
 		$updated = 0;
 
 		foreach ( $ids as $post_id ) {
@@ -315,7 +315,7 @@ class BM_Blocks {
 		global $wpdb;
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_url' AND meta_value = %s LIMIT 1",
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_url' AND meta_value = %s LIMIT 1",
 				$url
 			)
 		);

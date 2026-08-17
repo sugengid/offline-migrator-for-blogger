@@ -7,9 +7,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class BM_Admin {
+class BMIG_Admin {
 
-	const MENU_SLUG = 'bloggermigrator';
+	const MENU_SLUG = 'offline-migrator-for-blogger';
 
 	/**
 	 * Register admin hooks.
@@ -17,16 +17,16 @@ class BM_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
-		add_action( 'admin_post_bm_export_redirects', array( __CLASS__, 'handle_export' ) );
+		add_action( 'admin_post_bmig_export_redirects', array( __CLASS__, 'handle_export' ) );
 	}
 
 	/**
-	 * Add the top-level BloggerMigrator menu.
+	 * Add the top-level Offline Migrator for Blogger menu.
 	 */
 	public static function register_menu() {
 		add_menu_page(
-			'BloggerMigrator',
-			'BloggerMigrator',
+			'Offline Migrator for Blogger',
+			'Offline Migrator for Blogger',
 			'manage_options',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' ),
@@ -46,55 +46,55 @@ class BM_Admin {
 		}
 
 		wp_enqueue_style(
-			'bm-admin',
-			BM_PLUGIN_URL . 'assets/bm-admin.css',
+			'bmig-admin',
+			BMIG_PLUGIN_URL . 'assets/bmig-admin.css',
 			array(),
-			(string) filemtime( BM_PLUGIN_DIR . 'assets/bm-admin.css' )
+			(string) filemtime( BMIG_PLUGIN_DIR . 'assets/bmig-admin.css' )
 		);
 		wp_enqueue_script(
-			'bm-admin',
-			BM_PLUGIN_URL . 'assets/bm-admin.js',
+			'bmig-admin',
+			BMIG_PLUGIN_URL . 'assets/bmig-admin.js',
 			array(),
-			(string) filemtime( BM_PLUGIN_DIR . 'assets/bm-admin.js' ),
+			(string) filemtime( BMIG_PLUGIN_DIR . 'assets/bmig-admin.js' ),
 			true
 		);
 		wp_localize_script(
-			'bm-admin',
-			'bmAdmin',
+			'bmig-admin',
+			'bmigAdmin',
 			array(
 				'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
-				'nonce'      => wp_create_nonce( 'bm_nonce' ),
+				'nonce'      => wp_create_nonce( 'bmig_nonce' ),
 				'homeUrl'    => home_url( '/' ),
-				'maxZipMb'   => (int) apply_filters( 'bm_max_zip_mb', 512 ),
+				'maxZipMb'   => (int) apply_filters( 'bmig_max_zip_mb', 512 ),
 				'phpLimitMb' => self::php_upload_limit_mb(),
-				'job'        => BM_Ajax::job_summary(),
+				'job'        => BMIG_Ajax::job_summary(),
 				'strings'    => array(
-					'requestFailed'    => __( 'Request gagal. Periksa koneksi lalu coba lagi.', 'bloggermigrator' ),
-					'pickZip'          => __( 'Pilih file arsip Takeout dulu.', 'bloggermigrator' ),
-					'zipTooLarge'      => __( 'Arsip melebihi batas plugin.', 'bloggermigrator' ),
-					'zipOverPhpLimit'  => __( 'Ukuran arsip melebihi batas upload PHP server. Upload hampir pasti gagal; kecilkan file atau naikkan upload_max_filesize dan post_max_size.', 'bloggermigrator' ),
-					'noSource'         => __( 'Sumber Takeout belum dipilih, ulangi dari langkah 1.', 'bloggermigrator' ),
-					'confirmMode'      => __( 'Mode ini mengubah struktur permalink situs. URL lama Blogger dialihkan dengan redirect 301 otomatis. Mode bisa diganti nanti dengan menjalankan ulang migrasi memakai mode lain. Lanjutkan?', 'bloggermigrator' ),
-					'confirmPending'   => __( 'Job sebelumnya belum selesai. Mulai dari awal?', 'bloggermigrator' ),
-					'confirmReset'     => __( 'State job akan dihapus dan wizard kembali ke awal. Konten hasil impor tidak ikut terhapus. Lanjutkan?', 'bloggermigrator' ),
-					'jobFinished'      => __( 'Migrasi selesai.', 'bloggermigrator' ),
-					'startFailed'      => __( 'Gagal memulai job', 'bloggermigrator' ),
-					'resetFailed'      => __( 'Gagal reset job', 'bloggermigrator' ),
-					'summaryFailed'    => __( 'Gagal memuat ringkasan blog', 'bloggermigrator' ),
-					'reportEmpty'      => __( 'Migrasi selesai tanpa konten baru. Kemungkinan semua konten sudah pernah diimpor atau feed tidak berisi entry.', 'bloggermigrator' ),
-					'batchFailed'      => __( 'Batch gagal 5x berturut-turut, migrasi dihentikan. Muat ulang halaman lalu klik Lanjutkan job untuk melanjutkan dari batch terakhir.', 'bloggermigrator' ),
-					'batchRetry'       => __( 'Batch error, coba ulang', 'bloggermigrator' ),
-					'resumeJob'        => __( 'Lanjutkan job', 'bloggermigrator' ),
-					'resumedTo'        => __( 'Melanjutkan job dari fase:', 'bloggermigrator' ),
-					'extractDone'      => __( 'Ekstrak selesai, blog ditemukan:', 'bloggermigrator' ),
-					'uploadFailed'     => __( 'Upload gagal', 'bloggermigrator' ),
-					'phaseContent'     => __( 'Mengimpor konten...', 'bloggermigrator' ),
-					'phaseMedia'       => __( 'Mengimpor gambar...', 'bloggermigrator' ),
-					'phaseReplace'     => __( 'Menyiapkan konten...', 'bloggermigrator' ),
-					'phaseRedirect'    => __( 'Menyiapkan redirect...', 'bloggermigrator' ),
-					'confirmCancel'    => __( 'Batal', 'bloggermigrator' ),
-					'confirmProceed'   => __( 'Lanjutkan', 'bloggermigrator' ),
-					'confirmOk'        => __( 'OK', 'bloggermigrator' ),
+					'requestFailed'    => __( 'Request gagal. Periksa koneksi lalu coba lagi.', 'offline-migrator-for-blogger' ),
+					'pickZip'          => __( 'Pilih file arsip Takeout dulu.', 'offline-migrator-for-blogger' ),
+					'zipTooLarge'      => __( 'Arsip melebihi batas plugin.', 'offline-migrator-for-blogger' ),
+					'zipOverPhpLimit'  => __( 'Ukuran arsip melebihi batas upload PHP server. Upload hampir pasti gagal; kecilkan file atau naikkan upload_max_filesize dan post_max_size.', 'offline-migrator-for-blogger' ),
+					'noSource'         => __( 'Sumber Takeout belum dipilih, ulangi dari langkah 1.', 'offline-migrator-for-blogger' ),
+					'confirmMode'      => __( 'Mode ini mengubah struktur permalink situs. URL lama Blogger dialihkan dengan redirect 301 otomatis. Mode bisa diganti nanti dengan menjalankan ulang migrasi memakai mode lain. Lanjutkan?', 'offline-migrator-for-blogger' ),
+					'confirmPending'   => __( 'Job sebelumnya belum selesai. Mulai dari awal?', 'offline-migrator-for-blogger' ),
+					'confirmReset'     => __( 'State job akan dihapus dan wizard kembali ke awal. Konten hasil impor tidak ikut terhapus. Lanjutkan?', 'offline-migrator-for-blogger' ),
+					'jobFinished'      => __( 'Migrasi selesai.', 'offline-migrator-for-blogger' ),
+					'startFailed'      => __( 'Gagal memulai job', 'offline-migrator-for-blogger' ),
+					'resetFailed'      => __( 'Gagal reset job', 'offline-migrator-for-blogger' ),
+					'summaryFailed'    => __( 'Gagal memuat ringkasan blog', 'offline-migrator-for-blogger' ),
+					'reportEmpty'      => __( 'Migrasi selesai tanpa konten baru. Kemungkinan semua konten sudah pernah diimpor atau feed tidak berisi entry.', 'offline-migrator-for-blogger' ),
+					'batchFailed'      => __( 'Batch gagal 5x berturut-turut, migrasi dihentikan. Muat ulang halaman lalu klik Lanjutkan job untuk melanjutkan dari batch terakhir.', 'offline-migrator-for-blogger' ),
+					'batchRetry'       => __( 'Batch error, coba ulang', 'offline-migrator-for-blogger' ),
+					'resumeJob'        => __( 'Lanjutkan job', 'offline-migrator-for-blogger' ),
+					'resumedTo'        => __( 'Melanjutkan job dari fase:', 'offline-migrator-for-blogger' ),
+					'extractDone'      => __( 'Ekstrak selesai, blog ditemukan:', 'offline-migrator-for-blogger' ),
+					'uploadFailed'     => __( 'Upload gagal', 'offline-migrator-for-blogger' ),
+					'phaseContent'     => __( 'Mengimpor konten...', 'offline-migrator-for-blogger' ),
+					'phaseMedia'       => __( 'Mengimpor gambar...', 'offline-migrator-for-blogger' ),
+					'phaseReplace'     => __( 'Menyiapkan konten...', 'offline-migrator-for-blogger' ),
+					'phaseRedirect'    => __( 'Menyiapkan redirect...', 'offline-migrator-for-blogger' ),
+					'confirmCancel'    => __( 'Batal', 'offline-migrator-for-blogger' ),
+					'confirmProceed'   => __( 'Lanjutkan', 'offline-migrator-for-blogger' ),
+					'confirmOk'        => __( 'OK', 'offline-migrator-for-blogger' ),
 				),
 			)
 		);
@@ -138,11 +138,11 @@ class BM_Admin {
 	 */
 	public static function render_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Akses ditolak.', 'bloggermigrator' ) );
+			wp_die( esc_html__( 'Akses ditolak.', 'offline-migrator-for-blogger' ) );
 		}
 
-		$allow_path = (bool) apply_filters( 'bm_allow_path_input', false );
-		$job        = BM_Ajax::job_summary();
+		$allow_path = (bool) apply_filters( 'bmig_allow_path_input', false );
+		$job        = BMIG_Ajax::job_summary();
 		$done       = $job && isset( $job['phase'] ) && 'done' === $job['phase'];
 		$report     = $done && ! empty( $job['report'] ) ? $job['report'] : array();
 		$r_posts    = isset( $report['posts'] ) ? $report['posts'] : 0;
@@ -163,52 +163,52 @@ class BM_Admin {
 		$r_failed_list = isset( $report['images_failed'] ) ? $report['images_failed'] : array();
 		$limit_mb   = self::php_upload_limit_mb();
 		?>
-		<div class="wrap bm-wrap">
-			<h1>BloggerMigrator</h1>
+		<div class="wrap bmig-wrap">
+			<h1>Offline Migrator for Blogger</h1>
 
 			<?php if ( ! $job ) : ?>
-				<div class="bm-intro">
-					<p><?php esc_html_e( 'Migrasikan blog Blogger ke WordPress hanya dari file backup Google Takeout, tanpa perlu blog online.', 'bloggermigrator' ); ?></p>
-					<ul class="bm-intro-steps">
+				<div class="bmig-intro">
+					<p><?php esc_html_e( 'Migrasikan blog Blogger ke WordPress hanya dari file backup Google Takeout, tanpa perlu blog online.', 'offline-migrator-for-blogger' ); ?></p>
+					<ul class="bmig-intro-steps">
 						<li>
 							<span class="dashicons dashicons-upload" aria-hidden="true"></span>
-							<strong><?php esc_html_e( 'Upload arsip Takeout', 'bloggermigrator' ); ?></strong><br>
-							<?php esc_html_e( 'Ekspor Blogger dari Google Takeout, lalu upload arsipnya (zip atau tgz) di langkah 1.', 'bloggermigrator' ); ?>
+							<strong><?php esc_html_e( 'Upload arsip Takeout', 'offline-migrator-for-blogger' ); ?></strong><br>
+							<?php esc_html_e( 'Ekspor Blogger dari Google Takeout, lalu upload arsipnya (zip atau tgz) di langkah 1.', 'offline-migrator-for-blogger' ); ?>
 						</li>
 						<li>
 							<span class="dashicons dashicons-admin-site-alt3" aria-hidden="true"></span>
-							<strong><?php esc_html_e( 'Pilih blog & mode', 'bloggermigrator' ); ?></strong><br>
-							<?php esc_html_e( 'Pilih blog yang akan dimigrasi dan mode permalink tujuan.', 'bloggermigrator' ); ?>
+							<strong><?php esc_html_e( 'Pilih blog & mode', 'offline-migrator-for-blogger' ); ?></strong><br>
+							<?php esc_html_e( 'Pilih blog yang akan dimigrasi dan mode permalink tujuan.', 'offline-migrator-for-blogger' ); ?>
 						</li>
 						<li>
 							<span class="dashicons dashicons-controls-play" aria-hidden="true"></span>
-							<strong><?php esc_html_e( 'Jalankan migrasi', 'bloggermigrator' ); ?></strong><br>
-							<?php esc_html_e( 'Konten, komentar, dan gambar diproses bertahap sampai selesai.', 'bloggermigrator' ); ?>
+							<strong><?php esc_html_e( 'Jalankan migrasi', 'offline-migrator-for-blogger' ); ?></strong><br>
+							<?php esc_html_e( 'Konten, komentar, dan gambar diproses bertahap sampai selesai.', 'offline-migrator-for-blogger' ); ?>
 						</li>
 					</ul>
 				</div>
 			<?php endif; ?>
 
-			<ol class="bm-tabs"<?php echo $done ? ' hidden' : ''; ?>>
-				<li class="bm-tab bm-active" data-step="1">1. <?php esc_html_e( 'Upload Takeout', 'bloggermigrator' ); ?></li>
-				<li class="bm-tab" data-step="2">2. <?php esc_html_e( 'Pilih Blog & Mode', 'bloggermigrator' ); ?></li>
-				<li class="bm-tab" data-step="3">3. <?php esc_html_e( 'Jalankan Migrasi', 'bloggermigrator' ); ?></li>
+			<ol class="bmig-tabs"<?php echo $done ? ' hidden' : ''; ?>>
+				<li class="bmig-tab bmig-active" data-step="1">1. <?php esc_html_e( 'Upload Takeout', 'offline-migrator-for-blogger' ); ?></li>
+				<li class="bmig-tab" data-step="2">2. <?php esc_html_e( 'Pilih Blog & Mode', 'offline-migrator-for-blogger' ); ?></li>
+				<li class="bmig-tab" data-step="3">3. <?php esc_html_e( 'Jalankan Migrasi', 'offline-migrator-for-blogger' ); ?></li>
 			</ol>
 
-			<p class="bm-status" id="bm-status" hidden></p>
+			<p class="bmig-status" id="bmig-status" hidden></p>
 
-			<div class="bm-step" id="bm-step-1"<?php echo $done ? ' hidden' : ''; ?>>
-				<h2><?php esc_html_e( 'Langkah 1: Upload arsip Takeout (zip/tgz)', 'bloggermigrator' ); ?></h2>
-				<form id="bm-upload-form">
+			<div class="bmig-step" id="bmig-step-1"<?php echo $done ? ' hidden' : ''; ?>>
+				<h2><?php esc_html_e( 'Langkah 1: Upload arsip Takeout (zip/tgz)', 'offline-migrator-for-blogger' ); ?></h2>
+				<form id="bmig-upload-form">
 					<p>
-						<input type="file" id="bm-zip" accept=".zip,.tgz,.tar.gz,application/zip,application/gzip">
+						<input type="file" id="bmig-zip" accept=".zip,.tgz,.tar.gz,application/zip,application/gzip">
 					</p>
 					<?php if ( $limit_mb > 0 ) : ?>
 						<p class="description">
 							<?php
 							printf(
 								/* translators: %d: upload size limit in MB */
-								esc_html__( 'Batas upload server saat ini: %d MB. Arsip yang lebih besar akan ditolak PHP sebelum sempat diproses.', 'bloggermigrator' ),
+								esc_html__( 'Batas upload server saat ini: %d MB. Arsip yang lebih besar akan ditolak PHP sebelum sempat diproses.', 'offline-migrator-for-blogger' ),
 								intval( $limit_mb )
 							);
 							?>
@@ -216,199 +216,199 @@ class BM_Admin {
 					<?php endif; ?>
 					<?php if ( $allow_path ) : ?>
 						<p>
-							<label for="bm-takeout-path"><?php esc_html_e( 'Atau path folder Takeout (khusus dev):', 'bloggermigrator' ); ?></label><br>
-							<input type="text" id="bm-takeout-path" class="regular-text" placeholder="/path/to/Takeout">
+							<label for="bmig-takeout-path"><?php esc_html_e( 'Atau path folder Takeout (khusus dev):', 'offline-migrator-for-blogger' ); ?></label><br>
+							<input type="text" id="bmig-takeout-path" class="regular-text" placeholder="/path/to/Takeout">
 						</p>
 					<?php endif; ?>
 					<p>
-						<button type="submit" class="button button-primary" id="bm-upload-btn">
-							<?php esc_html_e( 'Upload & Ekstrak', 'bloggermigrator' ); ?>
+						<button type="submit" class="button button-primary" id="bmig-upload-btn">
+							<?php esc_html_e( 'Upload & Ekstrak', 'offline-migrator-for-blogger' ); ?>
 						</button>
-						<span class="spinner" id="bm-upload-spinner"></span>
+						<span class="spinner" id="bmig-upload-spinner"></span>
 					</p>
 				</form>
 			</div>
 
-			<div class="bm-step" id="bm-step-2" hidden>
-				<h2><?php esc_html_e( 'Langkah 2: Pilih blog dan mode permalink', 'bloggermigrator' ); ?></h2>
+			<div class="bmig-step" id="bmig-step-2" hidden>
+				<h2><?php esc_html_e( 'Langkah 2: Pilih blog dan mode permalink', 'offline-migrator-for-blogger' ); ?></h2>
 				<p>
-					<label for="bm-blog"><?php esc_html_e( 'Blog yang dimigrasi:', 'bloggermigrator' ); ?></label><br>
-					<select id="bm-blog"></select>
+					<label for="bmig-blog"><?php esc_html_e( 'Blog yang dimigrasi:', 'offline-migrator-for-blogger' ); ?></label><br>
+					<select id="bmig-blog"></select>
 				</p>
-				<fieldset class="bm-modes">
-					<legend><?php esc_html_e( 'Mode permalink:', 'bloggermigrator' ); ?></legend>
+				<fieldset class="bmig-modes">
+					<legend><?php esc_html_e( 'Mode permalink:', 'offline-migrator-for-blogger' ); ?></legend>
 					<p>
 						<label>
-							<input type="radio" name="bm_mode" value="a" checked>
-							<strong><?php esc_html_e( 'Mode A', 'bloggermigrator' ); ?></strong>:
-							<?php esc_html_e( 'pertahankan URL asli Blogger (/2026/03/slug.html).', 'bloggermigrator' ); ?>
+							<input type="radio" name="bmig_mode" value="a" checked>
+							<strong><?php esc_html_e( 'Mode A', 'offline-migrator-for-blogger' ); ?></strong>:
+							<?php esc_html_e( 'pertahankan URL asli Blogger (/2026/03/slug.html).', 'offline-migrator-for-blogger' ); ?>
 						</label>
 					</p>
 					<p>
 						<label>
-							<input type="radio" name="bm_mode" value="b">
-							<strong><?php esc_html_e( 'Mode B', 'bloggermigrator' ); ?></strong>:
-							<?php esc_html_e( 'URL baru di root (/slug/) dengan redirect 301 dari URL lama.', 'bloggermigrator' ); ?>
+							<input type="radio" name="bmig_mode" value="b">
+							<strong><?php esc_html_e( 'Mode B', 'offline-migrator-for-blogger' ); ?></strong>:
+							<?php esc_html_e( 'URL baru di root (/slug/) dengan redirect 301 dari URL lama.', 'offline-migrator-for-blogger' ); ?>
 						</label>
 					</p>
 				</fieldset>
-				<fieldset class="bm-modes">
-					<legend><?php esc_html_e( 'Gambar postingan:', 'bloggermigrator' ); ?></legend>
+				<fieldset class="bmig-modes">
+					<legend><?php esc_html_e( 'Gambar postingan:', 'offline-migrator-for-blogger' ); ?></legend>
 					<p>
 						<label>
-							<input type="checkbox" id="bm-media-album" checked>
-							<?php esc_html_e( 'Import gambar dari album Takeout (offline, dari folder Albums hasil ekstrak arsip).', 'bloggermigrator' ); ?>
+							<input type="checkbox" id="bmig-media-album" checked>
+							<?php esc_html_e( 'Import gambar dari album Takeout (offline, dari folder Albums hasil ekstrak arsip).', 'offline-migrator-for-blogger' ); ?>
 						</label>
 					</p>
 					<p>
 						<label>
-							<input type="checkbox" id="bm-media-external">
-							<?php esc_html_e( 'Import gambar dari URL eksternal (online: URL yang masih hidup di-download ke media library).', 'bloggermigrator' ); ?>
+							<input type="checkbox" id="bmig-media-external">
+							<?php esc_html_e( 'Import gambar dari URL eksternal (online: URL yang masih hidup di-download ke media library).', 'offline-migrator-for-blogger' ); ?>
 						</label>
 					</p>
 					<p class="description">
-						<?php esc_html_e( 'Kosongkan keduanya untuk tidak mengimport gambar.', 'bloggermigrator' ); ?>
+						<?php esc_html_e( 'Kosongkan keduanya untuk tidak mengimport gambar.', 'offline-migrator-for-blogger' ); ?>
 					</p>
 				</fieldset>
 				<p>
 					<label>
-						<input type="checkbox" id="bm-to-blocks">
-						<?php esc_html_e( 'Konversi HTML konten ke Gutenberg blocks.', 'bloggermigrator' ); ?>
+						<input type="checkbox" id="bmig-to-blocks">
+						<?php esc_html_e( 'Konversi HTML konten ke Gutenberg blocks.', 'offline-migrator-for-blogger' ); ?>
 					</label>
 				</p>
 				<p>
-					<button type="button" class="button button-primary" id="bm-config-btn">
-						<?php esc_html_e( 'Lanjut', 'bloggermigrator' ); ?>
+					<button type="button" class="button button-primary" id="bmig-config-btn">
+						<?php esc_html_e( 'Lanjut', 'offline-migrator-for-blogger' ); ?>
 					</button>
 				</p>
 			</div>
 
-			<div class="bm-step" id="bm-step-3" hidden>
-				<h2><?php esc_html_e( 'Langkah 3: Jalankan migrasi', 'bloggermigrator' ); ?></h2>
-				<div class="bm-summary" id="bm-summary" hidden>
-					<h3><?php esc_html_e( 'Ringkasan blog', 'bloggermigrator' ); ?></h3>
-					<p class="bm-summary-blog">
-						<?php esc_html_e( 'Blog:', 'bloggermigrator' ); ?>
-						<strong id="bm-sum-blog"></strong>
+			<div class="bmig-step" id="bmig-step-3" hidden>
+				<h2><?php esc_html_e( 'Langkah 3: Jalankan migrasi', 'offline-migrator-for-blogger' ); ?></h2>
+				<div class="bmig-summary" id="bmig-summary" hidden>
+					<h3><?php esc_html_e( 'Ringkasan blog', 'offline-migrator-for-blogger' ); ?></h3>
+					<p class="bmig-summary-blog">
+						<?php esc_html_e( 'Blog:', 'offline-migrator-for-blogger' ); ?>
+						<strong id="bmig-sum-blog"></strong>
 					</p>
-					<div class="bm-summary-grid">
-						<div class="bm-summary-item">
-							<span class="bm-summary-num" id="bm-sum-posts">0</span>
-							<span class="bm-summary-label"><?php esc_html_e( 'Postingan', 'bloggermigrator' ); ?></span>
+					<div class="bmig-summary-grid">
+						<div class="bmig-summary-item">
+							<span class="bmig-summary-num" id="bmig-sum-posts">0</span>
+							<span class="bmig-summary-label"><?php esc_html_e( 'Postingan', 'offline-migrator-for-blogger' ); ?></span>
 						</div>
-						<div class="bm-summary-item">
-							<span class="bm-summary-num" id="bm-sum-pages">0</span>
-							<span class="bm-summary-label"><?php esc_html_e( 'Halaman', 'bloggermigrator' ); ?></span>
+						<div class="bmig-summary-item">
+							<span class="bmig-summary-num" id="bmig-sum-pages">0</span>
+							<span class="bmig-summary-label"><?php esc_html_e( 'Halaman', 'offline-migrator-for-blogger' ); ?></span>
 						</div>
-						<div class="bm-summary-item">
-							<span class="bm-summary-num" id="bm-sum-comments">0</span>
-							<span class="bm-summary-label"><?php esc_html_e( 'Komentar', 'bloggermigrator' ); ?></span>
+						<div class="bmig-summary-item">
+							<span class="bmig-summary-num" id="bmig-sum-comments">0</span>
+							<span class="bmig-summary-label"><?php esc_html_e( 'Komentar', 'offline-migrator-for-blogger' ); ?></span>
 						</div>
-						<div class="bm-summary-item">
-							<span class="bm-summary-num" id="bm-sum-images">0</span>
-							<span class="bm-summary-label"><?php esc_html_e( 'Gambar', 'bloggermigrator' ); ?></span>
+						<div class="bmig-summary-item">
+							<span class="bmig-summary-num" id="bmig-sum-images">0</span>
+							<span class="bmig-summary-label"><?php esc_html_e( 'Gambar', 'offline-migrator-for-blogger' ); ?></span>
 						</div>
 					</div>
 				</div>
-				<div class="bm-progress" id="bm-progress" hidden>
-					<div class="bm-progress-bar" id="bm-progress-bar"></div>
+				<div class="bmig-progress" id="bmig-progress" hidden>
+					<div class="bmig-progress-bar" id="bmig-progress-bar"></div>
 				</div>
-				<p id="bm-progress-label" hidden>0%</p>
+				<p id="bmig-progress-label" hidden>0%</p>
 				<p>
-					<button type="button" class="button button-primary" id="bm-start-btn">
-						<?php esc_html_e( 'Mulai Migrasi', 'bloggermigrator' ); ?>
+					<button type="button" class="button button-primary" id="bmig-start-btn">
+						<?php esc_html_e( 'Mulai Migrasi', 'offline-migrator-for-blogger' ); ?>
 					</button>
 				</p>
 			</div>
 
-			<div class="bm-step bm-report" id="bm-report"<?php echo $done ? '' : ' hidden'; ?>>
-				<h2><?php esc_html_e( 'Laporan Migrasi', 'bloggermigrator' ); ?></h2>
-				<div class="notice notice-info inline" id="bm-report-empty"<?php echo $done && $r_imported > 0 ? ' hidden' : ''; ?>>
-					<p><?php esc_html_e( 'Migrasi selesai tanpa konten baru. Kemungkinan semua konten sudah pernah diimpor atau feed tidak berisi entry.', 'bloggermigrator' ); ?></p>
+			<div class="bmig-step bmig-report" id="bmig-report"<?php echo $done ? '' : ' hidden'; ?>>
+				<h2><?php esc_html_e( 'Laporan Migrasi', 'offline-migrator-for-blogger' ); ?></h2>
+				<div class="notice notice-info inline" id="bmig-report-empty"<?php echo $done && $r_imported > 0 ? ' hidden' : ''; ?>>
+					<p><?php esc_html_e( 'Migrasi selesai tanpa konten baru. Kemungkinan semua konten sudah pernah diimpor atau feed tidak berisi entry.', 'offline-migrator-for-blogger' ); ?></p>
 				</div>
-				<table class="widefat striped bm-report-table">
+				<table class="widefat striped bmig-report-table">
 					<tbody>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Post diimport', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-posts"><?php echo esc_html( $r_posts ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Post diimport', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-posts"><?php echo esc_html( $r_posts ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Halaman diimport', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-pages"><?php echo esc_html( $r_pages ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Halaman diimport', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-pages"><?php echo esc_html( $r_pages ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Komentar diimport', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-comments"><?php echo esc_html( $r_comments ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Komentar diimport', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-comments"><?php echo esc_html( $r_comments ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Attachment dibuat', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-attachments"><?php echo esc_html( $r_attach ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Attachment dibuat', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-attachments"><?php echo esc_html( $r_attach ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'URL gambar cocok', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-matched"><?php echo esc_html( $r_matched ); ?></td>
+							<th scope="row"><?php esc_html_e( 'URL gambar cocok', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-matched"><?php echo esc_html( $r_matched ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Gambar dari album', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-album"><?php echo esc_html( $r_album ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Gambar dari album', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-album"><?php echo esc_html( $r_album ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Gambar dari URL eksternal', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-external"><?php echo esc_html( $r_ext ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Gambar dari URL eksternal', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-external"><?php echo esc_html( $r_ext ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Gambar gagal diimport', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-failed-count"><?php echo esc_html( $r_failed ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Gambar gagal diimport', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-failed-count"><?php echo esc_html( $r_failed ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Konten diupdate (replace URL)', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-posts-updated"><?php echo esc_html( $r_updated ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Konten diupdate (replace URL)', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-posts-updated"><?php echo esc_html( $r_updated ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Mode redirect aktif', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-mode"><?php echo esc_html( $r_mode ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Mode redirect aktif', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-mode"><?php echo esc_html( $r_mode ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Durasi', 'bloggermigrator' ); ?></th>
-							<td id="bm-r-duration"><?php echo esc_html( $r_dur ); ?></td>
+							<th scope="row"><?php esc_html_e( 'Durasi', 'offline-migrator-for-blogger' ); ?></th>
+							<td id="bmig-r-duration"><?php echo esc_html( $r_dur ); ?></td>
 						</tr>
 					</tbody>
 				</table>
-				<div class="notice notice-warning inline" id="bm-report-warning"<?php echo $done && $r_warn ? '' : ' hidden'; ?>>
+				<div class="notice notice-warning inline" id="bmig-report-warning"<?php echo $done && $r_warn ? '' : ' hidden'; ?>>
 					<p>
-						<?php esc_html_e( 'Mode A memakai URL asli Blogger untuk postingan (contoh: namablog.com/2026/03/judul.html). Halaman statis tetap diarahkan otomatis dari /p/judul.html ke /judul/ karena strukturnya berbeda.', 'bloggermigrator' ); ?>
+						<?php esc_html_e( 'Mode A memakai URL asli Blogger untuk postingan (contoh: namablog.com/2026/03/judul.html). Halaman statis tetap diarahkan otomatis dari /p/judul.html ke /judul/ karena strukturnya berbeda.', 'offline-migrator-for-blogger' ); ?>
 					</p>
 				</div>
-				<div class="notice notice-warning inline" id="bm-report-conflicts"<?php echo $done && ! empty( $r_conflicts ) ? '' : ' hidden'; ?>>
+				<div class="notice notice-warning inline" id="bmig-report-conflicts"<?php echo $done && ! empty( $r_conflicts ) ? '' : ' hidden'; ?>>
 					<p>
-						<?php esc_html_e( 'Slug berikut bentrok dengan halaman statis yang sudah ada. Halaman menang di routing; redirect dari URL Blogger tetap dipasang.', 'bloggermigrator' ); ?>
+						<?php esc_html_e( 'Slug berikut bentrok dengan halaman statis yang sudah ada. Halaman menang di routing; redirect dari URL Blogger tetap dipasang.', 'offline-migrator-for-blogger' ); ?>
 					</p>
-					<ul id="bm-r-conflicts">
+					<ul id="bmig-r-conflicts">
 						<?php foreach ( $r_conflicts as $slug ) : ?>
 							<li><?php echo esc_html( '/' . $slug . '/' ); ?></li>
 						<?php endforeach; ?>
 					</ul>
 				</div>
-				<h3><?php esc_html_e( 'URL gambar tidak ditemukan di album', 'bloggermigrator' ); ?></h3>
-				<p id="bm-r-unmatched-empty"<?php echo $done && ! empty( $r_unmatched ) ? ' hidden' : ''; ?>><?php esc_html_e( 'Semua URL gambar berhasil dipetakan.', 'bloggermigrator' ); ?></p>
-				<ul id="bm-r-unmatched">
+				<h3><?php esc_html_e( 'URL gambar tidak ditemukan di album', 'offline-migrator-for-blogger' ); ?></h3>
+				<p id="bmig-r-unmatched-empty"<?php echo $done && ! empty( $r_unmatched ) ? ' hidden' : ''; ?>><?php esc_html_e( 'Semua URL gambar berhasil dipetakan.', 'offline-migrator-for-blogger' ); ?></p>
+				<ul id="bmig-r-unmatched">
 					<?php foreach ( array_keys( $r_unmatched ) as $url ) : ?>
 						<li><?php echo esc_html( $url ); ?></li>
 					<?php endforeach; ?>
 				</ul>
-				<h3><?php esc_html_e( 'URL gambar gagal diimport', 'bloggermigrator' ); ?></h3>
-				<p id="bm-r-failed-empty"<?php echo $done && ! empty( $r_failed_list ) ? ' hidden' : ''; ?>><?php esc_html_e( 'Tidak ada gambar yang gagal diimport.', 'bloggermigrator' ); ?></p>
-				<ul id="bm-r-failed">
+				<h3><?php esc_html_e( 'URL gambar gagal diimport', 'offline-migrator-for-blogger' ); ?></h3>
+				<p id="bmig-r-failed-empty"<?php echo $done && ! empty( $r_failed_list ) ? ' hidden' : ''; ?>><?php esc_html_e( 'Tidak ada gambar yang gagal diimport.', 'offline-migrator-for-blogger' ); ?></p>
+				<ul id="bmig-r-failed">
 					<?php foreach ( array_keys( $r_failed_list ) as $url ) : ?>
 						<li><?php echo esc_html( $url ); ?></li>
 					<?php endforeach; ?>
 				</ul>
 				<p>
 					<a class="button button-primary" href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" rel="noopener">
-						<?php esc_html_e( 'Lihat situs', 'bloggermigrator' ); ?>
+						<?php esc_html_e( 'Lihat situs', 'offline-migrator-for-blogger' ); ?>
 					</a>
-					<button type="button" class="button" id="bm-reset-btn">
-						<?php esc_html_e( 'Mulai migrasi baru', 'bloggermigrator' ); ?>
+					<button type="button" class="button" id="bmig-reset-btn">
+						<?php esc_html_e( 'Mulai migrasi baru', 'offline-migrator-for-blogger' ); ?>
 					</button>
 				</p>
 			</div>
@@ -423,33 +423,33 @@ class BM_Admin {
 	 * redirects produced by the migration.
 	 */
 	private static function render_redirect_manager() {
-		if ( 0 === BM_Redirect::data_count() ) {
+		if ( 0 === BMIG_Redirect::data_count() ) {
 			return;
 		}
 
-		$map = BM_Redirect::export_map();
+		$map = BMIG_Redirect::export_map();
 
-		$export_csv  = wp_nonce_url( admin_url( 'admin-post.php?action=bm_export_redirects&format=csv' ), 'bm_export_redirects' );
-		$export_json = wp_nonce_url( admin_url( 'admin-post.php?action=bm_export_redirects&format=json' ), 'bm_export_redirects' );
+		$export_csv  = wp_nonce_url( admin_url( 'admin-post.php?action=bmig_export_redirects&format=csv' ), 'bmig_export_redirects' );
+		$export_json = wp_nonce_url( admin_url( 'admin-post.php?action=bmig_export_redirects&format=json' ), 'bmig_export_redirects' );
 		?>
-		<div class="bm-step bm-redirect-manager">
-			<h2><?php esc_html_e( 'Export redirect', 'bloggermigrator' ); ?></h2>
+		<div class="bmig-step bmig-redirect-manager">
+			<h2><?php esc_html_e( 'Export redirect', 'offline-migrator-for-blogger' ); ?></h2>
 
 			<p>
 				<?php
 				printf(
 					/* translators: %d: total redirect entries */
-					esc_html__( 'Total redirect: %d.', 'bloggermigrator' ),
+					esc_html__( 'Total redirect: %d.', 'offline-migrator-for-blogger' ),
 					count( $map )
 				);
 				?>
 			</p>
-			<div class="bm-redirect-scroll">
+			<div class="bmig-redirect-scroll">
 				<table class="widefat striped">
 					<thead>
 						<tr>
-							<th><?php esc_html_e( 'URL lama', 'bloggermigrator' ); ?></th>
-							<th><?php esc_html_e( 'URL baru', 'bloggermigrator' ); ?></th>
+							<th><?php esc_html_e( 'URL lama', 'offline-migrator-for-blogger' ); ?></th>
+							<th><?php esc_html_e( 'URL baru', 'offline-migrator-for-blogger' ); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -463,10 +463,10 @@ class BM_Admin {
 				</table>
 			</div>
 
-			<p><?php esc_html_e( 'Unduh semua redirect untuk diimport ke plugin Redirection. Setelah itu plugin BloggerMigrator bisa dihapus dan URL redirect tetap bekerja. Atau tetap aktifkan plugin ini jika tidak ingin menggunakan plugin Redirection.', 'bloggermigrator' ); ?></p>
+			<p><?php esc_html_e( 'Unduh semua redirect untuk diimport ke plugin Redirection. Setelah itu plugin Offline Migrator for Blogger bisa dihapus dan URL redirect tetap bekerja. Atau tetap aktifkan plugin ini jika tidak ingin menggunakan plugin Redirection.', 'offline-migrator-for-blogger' ); ?></p>
 			<p>
-				<a class="button" href="<?php echo esc_url( $export_csv ); ?>"><?php esc_html_e( 'Export redirect CSV', 'bloggermigrator' ); ?></a>
-				<a class="button" href="<?php echo esc_url( $export_json ); ?>"><?php esc_html_e( 'Export redirect JSON', 'bloggermigrator' ); ?></a>
+				<a class="button" href="<?php echo esc_url( $export_csv ); ?>"><?php esc_html_e( 'Export redirect CSV', 'offline-migrator-for-blogger' ); ?></a>
+				<a class="button" href="<?php echo esc_url( $export_json ); ?>"><?php esc_html_e( 'Export redirect JSON', 'offline-migrator-for-blogger' ); ?></a>
 			</p>
 		</div>
 		<?php
@@ -479,7 +479,7 @@ class BM_Admin {
 	 */
 	private static function verify_manager_request( $nonce_action ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Akses ditolak.', 'bloggermigrator' ) );
+			wp_die( esc_html__( 'Akses ditolak.', 'offline-migrator-for-blogger' ) );
 		}
 		check_admin_referer( $nonce_action );
 	}
@@ -498,30 +498,40 @@ class BM_Admin {
 	 * Stream the redirect export as a CSV or JSON download.
 	 */
 	public static function handle_export() {
-		self::verify_manager_request( 'bm_export_redirects' );
+		self::verify_manager_request( 'bmig_export_redirects' );
 
 		$format = isset( $_GET['format'] ) && 'json' === $_GET['format'] ? 'json' : 'csv'; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.NonceVerification.Recommended -- Nonce verified in self::verify_manager_request() above.
-		$rows   = BM_Redirect::export_rows();
+		$rows   = BMIG_Redirect::export_rows();
 
 		nocache_headers();
 		if ( 'json' === $format ) {
-			$data = array();
+			// Dokumen impor plugin Redirection: objek top-level berisi array "redirects".
+			$data = array(
+				'plugin'    => array(
+					'version' => BMIG_VERSION,
+					'date'    => gmdate( 'r' ),
+				),
+				'redirects' => array(),
+			);
 			foreach ( $rows as $row ) {
-				$data[] = array(
-					'source' => $row[0],
-					'target' => $row[1],
-					'code'   => 301,
-					'regex'  => false,
+				$data['redirects'][] = array(
+					'url'         => $row[0],
+					'match_type'  => 'url',
+					'action_code' => 301,
+					'action_type' => 'url',
+					'action_data' => array( 'url' => $row[1] ),
+					'regex'       => false,
+					'enabled'     => true,
 				);
 			}
 			header( 'Content-Type: application/json; charset=utf-8' );
-			header( 'Content-Disposition: attachment; filename="bm-redirects.json"' );
+			header( 'Content-Disposition: attachment; filename="bmig-redirects.json"' );
 			echo wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 			exit;
 		}
 
 		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="bm-redirects.csv"' );
+		header( 'Content-Disposition: attachment; filename="bmig-redirects.csv"' );
 		$out = fopen( 'php://output', 'w' );
 		foreach ( $rows as $row ) {
 			fputcsv( $out, array( $row[0], $row[1], '0', '301' ), ',', '"', '' );

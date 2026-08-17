@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class BM_Importer {
+class BMIG_Importer {
 
 	/**
 	 * Comments whose parent post has not been imported yet, retried on the
@@ -27,7 +27,7 @@ class BM_Importer {
 	 * then a sweep links comment_parent for every reply whose parent comment
 	 * already exists.
 	 *
-	 * @param array         $items       Item arrays from BM_Parser::parse().
+	 * @param array         $items       Item arrays from BMIG_Parser::parse().
 	 * @param callable|null $on_progress Optional callback receiving the stats array after each item.
 	 * @return array Stats: total, imported, skipped, errors, deferred (comments still waiting for their parent post).
 	 */
@@ -93,8 +93,8 @@ class BM_Importer {
 			'post_date'     => $post_date,
 			'post_date_gmt' => $post_date_gmt,
 			'meta_input'    => array(
-				'_bm_source_id' => $item['id'],
-				'_bm_filename'  => $item['filename'],
+				'_bmig_source_id' => $item['id'],
+				'_bmig_filename'  => $item['filename'],
 			),
 		);
 
@@ -149,7 +149,7 @@ class BM_Importer {
 
 	/**
 	 * Insert one comment without threading. The reply target is kept in the
-	 * _bm_in_reply_to meta so resolve_comment_parents() can link it once the
+	 * _bmig_in_reply_to meta so resolve_comment_parents() can link it once the
 	 * parent comment exists.
 	 *
 	 * @param array $item  Parsed item.
@@ -189,9 +189,9 @@ class BM_Importer {
 			return;
 		}
 
-		add_comment_meta( $comment_id, '_bm_source_id', $item['id'] );
+		add_comment_meta( $comment_id, '_bmig_source_id', $item['id'] );
 		if ( '' !== $item['in_reply_to'] ) {
-			add_comment_meta( $comment_id, '_bm_in_reply_to', $item['in_reply_to'] );
+			add_comment_meta( $comment_id, '_bmig_in_reply_to', $item['in_reply_to'] );
 		}
 
 		$stats['imported']++;
@@ -200,7 +200,7 @@ class BM_Importer {
 	/**
 	 * Link comment_parent for replies whose parent comment is already imported.
 	 * Runs over all unresolved replies, not just the current chunk, so replies
-	 * chunked before their parent still get linked. The _bm_in_reply_to meta is
+	 * chunked before their parent still get linked. The _bmig_in_reply_to meta is
 	 * deleted once resolved to keep later sweeps cheap.
 	 */
 	private function resolve_comment_parents() {
@@ -210,7 +210,7 @@ class BM_Importer {
 			"SELECT cm.comment_id, cm.meta_value AS reply_to
 			FROM {$wpdb->commentmeta} cm
 			INNER JOIN {$wpdb->comments} c ON c.comment_ID = cm.comment_id
-			WHERE cm.meta_key = '_bm_in_reply_to' AND c.comment_parent = 0"
+			WHERE cm.meta_key = '_bmig_in_reply_to' AND c.comment_parent = 0"
 		);
 
 		foreach ( $pending as $row ) {
@@ -226,7 +226,7 @@ class BM_Importer {
 				array( '%d' )
 			);
 			clean_comment_cache( $row->comment_id );
-			delete_comment_meta( $row->comment_id, '_bm_in_reply_to' );
+			delete_comment_meta( $row->comment_id, '_bmig_in_reply_to' );
 		}
 	}
 
@@ -243,7 +243,7 @@ class BM_Importer {
 		}
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bm_source_id' AND meta_value = %s LIMIT 1",
+				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_bmig_source_id' AND meta_value = %s LIMIT 1",
 				$source_id
 			)
 		);
@@ -262,7 +262,7 @@ class BM_Importer {
 		}
 		return (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Prepared lookup on a plugin-internal meta key.
 			$wpdb->prepare(
-				"SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = '_bm_source_id' AND meta_value = %s LIMIT 1",
+				"SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = '_bmig_source_id' AND meta_value = %s LIMIT 1",
 				$source_id
 			)
 		);

@@ -1,8 +1,8 @@
-# BloggerMigrator
+# Offline Migrator for Blogger
 
 Migrate a Blogger blog to WordPress **offline** from Google Takeout. Content, images, comments, and 301 redirects from your backup, no online blog needed.
 
-Unlike importers that require your old blog to stay online, BloggerMigrator works fully offline: blogs that were deleted or locked can still be migrated.
+Unlike importers that require your old blog to stay online, Offline Migrator for Blogger works fully offline: blogs that were deleted or locked can still be migrated.
 
 ## Features
 
@@ -25,9 +25,9 @@ Unlike importers that require your old blog to stay online, BloggerMigrator work
 
 ## Installation
 
-1. Upload the `bloggermigrator` folder to `/wp-content/plugins/`, or install the zip via Plugins → Add New → Upload.
+1. Upload the `offline-migrator-for-blogger` folder to `/wp-content/plugins/`, or install the zip via Plugins → Add New → Upload.
 2. Activate the plugin.
-3. Open the **BloggerMigrator** menu in your dashboard.
+3. Open the **Offline Migrator for Blogger** menu in your dashboard.
 4. Upload your Google Takeout archive (zip or tgz), choose the blog and permalink mode, then run the migration.
 
 To get the Takeout file: open [Google Takeout](https://takeout.google.com/), select the Blogger product, export, then download the archive in zip or tgz format.
@@ -36,11 +36,11 @@ To get the Takeout file: open [Google Takeout](https://takeout.google.com/), sel
 
 The wizard guides you through three steps: upload the archive, pick the blog and permalink mode, then run the migration. Processing is chunked via AJAX with a live progress bar; if a batch fails you can reload the page and continue the job from where it left off.
 
-After the migration, the report screen shows what was imported (posts, pages, comments, attachments, images) and the Export redirect section lists every old-to-new URL pair. Download the CSV/JSON export if you plan to manage redirects with the Redirection plugin and remove BloggerMigrator afterwards.
+After the migration, the report screen shows what was imported (posts, pages, comments, attachments, images) and the Export redirect section lists every old-to-new URL pair. Download the CSV/JSON export if you plan to manage redirects with the Redirection plugin and remove Offline Migrator for Blogger afterwards.
 
 ## Translations
 
-The plugin ships with a `languages/` folder containing the `.pot` template and an `en_US` translation. Default UI strings are Indonesian; sites running English get the English UI automatically.
+When hosted on WordPress.org, translations are distributed automatically through translate.wordpress.org. UI strings default to Indonesian; sites running other locales receive the matching translation.
 
 ## Screenshots
 
