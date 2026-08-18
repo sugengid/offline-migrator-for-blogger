@@ -15,6 +15,9 @@ class BMIG_Ajax {
 	const CONTENT_BATCH  = 25;
 	const MEDIA_BATCH    = 10;
 
+	// Umur maksimal sesi upload chunk tanpa aktivitas sebelum dibersihkan cron.
+	const UPLOAD_STALE_SECONDS = 3600;
+
 	/**
 	 * Register AJAX endpoints.
 	 */
@@ -218,6 +221,7 @@ class BMIG_Ajax {
 			'total_size'   => $size,
 			'chunk_size'   => $chunk_size,
 			'received'     => 0,
+			'updated_at'   => time(),
 		);
 		update_option( self::OPTION_UPLOAD, $state, false );
 
@@ -276,8 +280,9 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Gagal menyimpan potongan file.', 'offline-migrator-for-blogger' ) ) );
 		}
 
-		$received          = count( (array) glob( $work . '/part-*' ) );
-		$state['received'] = $received;
+		$received            = count( (array) glob( $work . '/part-*' ) );
+		$state['received']   = $received;
+		$state['updated_at'] = time();
 		update_option( self::OPTION_UPLOAD, $state, false );
 
 		wp_send_json_success(
@@ -364,6 +369,63 @@ class BMIG_Ajax {
 		// meninggalkan state sesi yang part-nya sudah dihapus dari disk.
 		delete_option( self::OPTION_UPLOAD );
 		self::extract_source( $source_path, $work );
+	}
+
+	/**
+	 * Remove abandoned chunk upload sessions. Runs from cron, not from an
+	 * admin AJAX request, so there is no nonce or capability check. It only
+	 * deletes upload-* folders that no active job or live session references.
+	 */
+	public static function cleanup_stale_uploads() {
+		self::extend_limits();
+
+		$upload_dir = wp_upload_dir();
+		$bmig_base  = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger';
+		$now        = time();
+
+		// Sesi yang state opsinya sudah melewati batas basi.
+		$state = get_option( self::OPTION_UPLOAD );
+		if ( is_array( $state ) && isset( $state['updated_at'] ) && ( $now - (int) $state['updated_at'] ) > self::UPLOAD_STALE_SECONDS ) {
+			$work = self::upload_work_dir( $state );
+			if ( '' !== $work ) {
+				self::cleanup_work_dir( $work );
+			}
+			delete_option( self::OPTION_UPLOAD );
+			$state = null;
+		}
+
+		$job_base = '';
+		$job      = get_option( self::OPTION_JOB );
+		if ( is_array( $job ) && ! empty( $job['source']['type'] ) && 'uploads' === $job['source']['type'] && ! empty( $job['source']['rel'] ) ) {
+			$parts = explode( '/', trim( $job['source']['rel'], '/' ) );
+			if ( count( $parts ) >= 2 ) {
+				$job_base = $parts[0] . '/' . $parts[1];
+			}
+		}
+
+		$session_rel = ( is_array( $state ) && ! empty( $state['work_dir_rel'] ) ) ? trim( $state['work_dir_rel'], '/' ) : '';
+
+		// Folder upload-* yatim: tidak dirujuk job aktif maupun sesi yang masih
+		// hidup, dan sudah lebih tua dari batas basi.
+		foreach ( (array) glob( $bmig_base . '/upload-*', GLOB_ONLYDIR ) as $folder ) {
+			$rel = 'offline-migrator-for-blogger/' . basename( $folder );
+			// Folder berisi hasil ekstrak berpotensi menjadi source job yang belum
+			// dicatat ke bmig_job; jangan hapus.
+			if ( is_dir( $folder . '/extract' ) ) {
+				continue;
+			}
+			if ( '' !== $job_base && $rel === $job_base ) {
+				continue;
+			}
+			if ( '' !== $session_rel && $rel === $session_rel ) {
+				continue;
+			}
+			$mtime = filemtime( $folder );
+			if ( false === $mtime || ( $now - (int) $mtime ) <= self::UPLOAD_STALE_SECONDS ) {
+				continue;
+			}
+			self::cleanup_work_dir( $folder );
+		}
 	}
 
 	/**

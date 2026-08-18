@@ -36,6 +36,7 @@ register_activation_hook( __FILE__, 'bmig_activate' );
  * from the active rule set.
  */
 function bmig_deactivate() {
+	wp_clear_scheduled_hook( 'bmig_cleanup_stale_uploads' );
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'bmig_deactivate' );
