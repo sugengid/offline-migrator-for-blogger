@@ -269,12 +269,14 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
 		}
 
-		$dest  = $work . '/part-' . $index;
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.move_uploaded_file_move_uploaded_file -- Chunk bukan arsip final dan mime tidak relevan, jadi wp_handle_upload() tidak dipakai.
-		$moved = move_uploaded_file( $file['tmp_name'], $dest );
+		$dest = $work . '/part-' . $index;
+		// Chunk bukan arsip final dan mime tidak relevan, jadi wp_handle_upload() tidak dipakai.
+		WP_Filesystem();
+		global $wp_filesystem;
+		$moved = ( $wp_filesystem && $wp_filesystem->move( $file['tmp_name'], $dest ) );
 		if ( ! $moved ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.copy_copy -- Fallback ketika move_uploaded_file gagal.
-			$moved = copy( $file['tmp_name'], $dest );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Fallback ketika WP_Filesystem tidak tersedia.
+			$moved = rename( $file['tmp_name'], $dest );
 		}
 		if ( ! $moved ) {
 			wp_send_json_error( array( 'message' => __( 'Gagal menyimpan potongan file.', 'offline-migrator-for-blogger' ) ) );
