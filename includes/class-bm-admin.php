@@ -72,7 +72,7 @@ class BMIG_Admin {
 					'requestFailed'    => __( 'Request gagal. Periksa koneksi lalu coba lagi.', 'offline-migrator-for-blogger' ),
 					'pickZip'          => __( 'Pilih file arsip Takeout dulu.', 'offline-migrator-for-blogger' ),
 					'zipTooLarge'      => __( 'Arsip melebihi batas plugin.', 'offline-migrator-for-blogger' ),
-					'zipOverPhpLimit'  => __( 'Ukuran arsip melebihi batas upload PHP server. Upload hampir pasti gagal; kecilkan file atau naikkan upload_max_filesize dan post_max_size.', 'offline-migrator-for-blogger' ),
+					'zipOverPhpLimit'  => __( 'Ukuran arsip melebihi batas upload PHP tunggal, tapi tidak masalah karena file dipecah otomatis menjadi potongan kecil.', 'offline-migrator-for-blogger' ),
 					'noSource'         => __( 'Sumber Takeout belum dipilih, ulangi dari langkah 1.', 'offline-migrator-for-blogger' ),
 					'confirmMode'      => __( 'Mode ini mengubah struktur permalink situs. URL lama Blogger dialihkan dengan redirect 301 otomatis. Mode bisa diganti nanti dengan menjalankan ulang migrasi memakai mode lain. Lanjutkan?', 'offline-migrator-for-blogger' ),
 					'confirmPending'   => __( 'Job sebelumnya belum selesai. Mulai dari awal?', 'offline-migrator-for-blogger' ),
@@ -88,6 +88,12 @@ class BMIG_Admin {
 					'resumedTo'        => __( 'Melanjutkan job dari fase:', 'offline-migrator-for-blogger' ),
 					'extractDone'      => __( 'Ekstrak selesai, blog ditemukan:', 'offline-migrator-for-blogger' ),
 					'uploadFailed'     => __( 'Upload gagal', 'offline-migrator-for-blogger' ),
+					'chunkUploading'   => __( 'Mengunggah arsip (dipecah otomatis)...', 'offline-migrator-for-blogger' ),
+					'chunkInitFailed'  => __( 'Gagal memulai upload chunk', 'offline-migrator-for-blogger' ),
+					'chunkUploadFailed' => __( 'Gagal mengunggah potongan file', 'offline-migrator-for-blogger' ),
+					'chunkFinishFailed' => __( 'Gagal menyelesaikan upload', 'offline-migrator-for-blogger' ),
+					'chunkInvalidSession' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ),
+					'chunkIncomplete'  => __( 'Potongan file belum lengkap, coba lagi.', 'offline-migrator-for-blogger' ),
 					'phaseContent'     => __( 'Mengimpor konten...', 'offline-migrator-for-blogger' ),
 					'phaseMedia'       => __( 'Mengimpor gambar...', 'offline-migrator-for-blogger' ),
 					'phaseReplace'     => __( 'Menyiapkan konten...', 'offline-migrator-for-blogger' ),
@@ -208,7 +214,7 @@ class BMIG_Admin {
 							<?php
 							printf(
 								/* translators: %d: upload size limit in MB */
-								esc_html__( 'Batas upload server saat ini: %d MB. Arsip yang lebih besar akan ditolak PHP sebelum sempat diproses.', 'offline-migrator-for-blogger' ),
+								esc_html__( 'Batas upload PHP server: %d MB per request. File dipecah otomatis menjadi potongan kecil, sehingga bisa melebihi batas upload PHP tunggal.', 'offline-migrator-for-blogger' ),
 								intval( $limit_mb )
 							);
 							?>
@@ -226,6 +232,10 @@ class BMIG_Admin {
 						</button>
 						<span class="spinner" id="bmig-upload-spinner"></span>
 					</p>
+					<div class="bmig-progress" id="bmig-upload-progress" hidden>
+						<div class="bmig-progress-bar" id="bmig-upload-progress-bar"></div>
+					</div>
+					<p id="bmig-upload-progress-label" hidden>0%</p>
 				</form>
 			</div>
 

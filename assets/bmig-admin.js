@@ -256,6 +256,104 @@
 		byId( 'bmig-start-btn' ).disabled = false;
 	}
 
+	function setUploadProgress( percent ) {
+		const wrap = byId( 'bmig-upload-progress' );
+		const bar = byId( 'bmig-upload-progress-bar' );
+		const label = byId( 'bmig-upload-progress-label' );
+		if ( ! wrap ) {
+			return;
+		}
+		if ( null === percent ) {
+			wrap.hidden = true;
+			if ( bar ) {
+				bar.style.width = '0%';
+			}
+			if ( label ) {
+				label.hidden = true;
+				label.textContent = '0%';
+			}
+			return;
+		}
+		wrap.hidden = false;
+		if ( bar ) {
+			bar.style.width = percent + '%';
+		}
+		if ( label ) {
+			label.hidden = false;
+			label.textContent = percent + '%';
+		}
+	}
+
+	function uploadChunk( zip, uploadId, chunkSize, index ) {
+		const start = index * chunkSize;
+		const end = Math.min( start + chunkSize, zip.size );
+		const fd = new FormData();
+		fd.append( 'action', 'bmig_chunk_upload' );
+		fd.append( 'nonce', cfg.nonce );
+		fd.append( 'upload_id', uploadId );
+		fd.append( 'index', index );
+		fd.append( 'chunk', zip.slice( start, end ), zip.name );
+		return postForm( fd ).then( function () {
+			return end - start;
+		} );
+	}
+
+	async function uploadChunkRetry( zip, uploadId, chunkSize, index ) {
+		let attempt = 0;
+		for ( ;; ) {
+			try {
+				return await uploadChunk( zip, uploadId, chunkSize, index );
+			} catch ( err ) {
+				attempt += 1;
+				if ( attempt >= 5 ) {
+					throw new Error( str( 'chunkUploadFailed', 'Gagal mengunggah potongan file' ) + ' ' + ( index + 1 ) + ': ' + err.message );
+				}
+				await new Promise( function ( resolve ) {
+					setTimeout( resolve, 1000 * attempt );
+				} );
+			}
+		}
+	}
+
+	async function uploadInChunks( zip ) {
+		status( str( 'chunkUploading', 'Mengunggah arsip (dipecah otomatis)...' ) );
+		setUploadProgress( 0 );
+
+		let init;
+		try {
+			init = await ajax( 'bmig_chunk_init', { filename: zip.name, size: zip.size } );
+		} catch ( err ) {
+			throw new Error( str( 'chunkInitFailed', 'Gagal memulai upload chunk' ) + ': ' + err.message );
+		}
+
+		const chunkSize = init.chunk_size;
+		const totalChunks = init.total_chunks;
+		let next = 0;
+		let uploadedBytes = 0;
+
+		async function worker() {
+			while ( next < totalChunks ) {
+				const index = next;
+				next += 1;
+				uploadedBytes += await uploadChunkRetry( zip, init.upload_id, chunkSize, index );
+				setUploadProgress( Math.round( ( uploadedBytes / zip.size ) * 100 ) );
+			}
+		}
+
+		const workers = [];
+		const concurrency = Math.min( 2, totalChunks );
+		for ( let w = 0; w < concurrency; w++ ) {
+			workers.push( worker() );
+		}
+		await Promise.all( workers );
+
+		try {
+			return await ajax( 'bmig_chunk_finish', { upload_id: init.upload_id } );
+		} catch ( err ) {
+			throw new Error( str( 'chunkFinishFailed', 'Gagal menyelesaikan upload' ) + ': ' + err.message );
+		}
+	}
+
 	function initUpload() {
 		const form = byId( 'bmig-upload-form' );
 		if ( ! form ) {
@@ -268,32 +366,38 @@
 			const fileInput = byId( 'bmig-zip' );
 			const pathInput = byId( 'bmig-takeout-path' );
 
-			const fd = new FormData();
-			fd.append( 'action', 'bmig_upload' );
-			fd.append( 'nonce', cfg.nonce );
-
-			if ( pathInput && pathInput.value.trim() ) {
-				fd.append( 'takeout_path', pathInput.value.trim() );
-			} else if ( fileInput.files.length ) {
-				const zip = fileInput.files[ 0 ];
+			const usePath = pathInput && pathInput.value.trim();
+			let zip = null;
+			if ( ! usePath ) {
+				if ( ! fileInput.files.length ) {
+					status( str( 'pickZip', 'Pilih file arsip Takeout dulu.' ), true );
+					return;
+				}
+				zip = fileInput.files[ 0 ];
+				const ext = zip.name.toLowerCase().split( '.' ).pop();
+				if ( [ 'zip', 'tgz', 'gz' ].indexOf( ext ) === -1 ) {
+					status( str( 'invalidType', 'File harus berupa arsip zip atau tgz.' ), true );
+					return;
+				}
 				if ( zip.size > cfg.maxZipMb * 1024 * 1024 ) {
 					status( str( 'zipTooLarge', 'Arsip melebihi batas plugin.' ) + ' (' + cfg.maxZipMb + ' MB)', true );
 					return;
 				}
-				if ( cfg.phpLimitMb > 0 && zip.size > cfg.phpLimitMb * 1024 * 1024 ) {
-					status( str( 'zipOverPhpLimit', 'Ukuran arsip melebihi batas upload PHP server.' ) + ' (' + cfg.phpLimitMb + ' MB)', true );
-					return;
-				}
-				fd.append( 'bmig_zip', zip );
-			} else {
-				status( str( 'pickZip', 'Pilih file arsip Takeout dulu.' ), true );
-				return;
 			}
 
 			button.disabled = true;
 			spinner.classList.add( 'is-active' );
 			try {
-				const data = await postForm( fd );
+				let data;
+				if ( usePath ) {
+					const fd = new FormData();
+					fd.append( 'action', 'bmig_upload' );
+					fd.append( 'nonce', cfg.nonce );
+					fd.append( 'takeout_path', pathInput.value.trim() );
+					data = await postForm( fd );
+				} else {
+					data = await uploadInChunks( zip );
+				}
 				state.source = data.source;
 				state.blogsRootRel = data.blogs_root_rel;
 				state.resumed = false;
@@ -307,6 +411,7 @@
 			}
 			button.disabled = false;
 			spinner.classList.remove( 'is-active' );
+			setUploadProgress( null );
 		} );
 	}
 

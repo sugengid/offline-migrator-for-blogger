@@ -10,15 +10,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class BMIG_Ajax {
 
-	const OPTION_JOB    = 'bmig_job';
-	const CONTENT_BATCH = 25;
-	const MEDIA_BATCH   = 10;
+	const OPTION_JOB     = 'bmig_job';
+	const OPTION_UPLOAD  = 'bmig_upload';
+	const CONTENT_BATCH  = 25;
+	const MEDIA_BATCH    = 10;
 
 	/**
 	 * Register AJAX endpoints.
 	 */
 	public static function init() {
 		add_action( 'wp_ajax_bmig_upload', array( __CLASS__, 'handle_upload' ) );
+		add_action( 'wp_ajax_bmig_chunk_init', array( __CLASS__, 'handle_chunk_init' ) );
+		add_action( 'wp_ajax_bmig_chunk_upload', array( __CLASS__, 'handle_chunk_upload' ) );
+		add_action( 'wp_ajax_bmig_chunk_finish', array( __CLASS__, 'handle_chunk_finish' ) );
 		add_action( 'wp_ajax_bmig_summary', array( __CLASS__, 'handle_summary' ) );
 		add_action( 'wp_ajax_bmig_step', array( __CLASS__, 'handle_step' ) );
 	}
@@ -160,6 +164,217 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Gagal memindahkan file upload.', 'offline-migrator-for-blogger' ) ) );
 		}
 
+		self::extract_source( $source_path, $work );
+	}
+
+	/**
+	 * Start a chunked upload session: validate the archive name and total
+	 * size, create the work directory, and store the session state so later
+	 * chunk requests can be checked against it.
+	 */
+	public static function handle_chunk_init() {
+		self::verify_request();
+		self::extend_limits();
+
+		$filename = isset( $_POST['filename'] ) ? sanitize_file_name( wp_unslash( $_POST['filename'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$size     = isset( $_POST['size'] ) ? (int) $_POST['size'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+
+		$extension = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
+		if ( ! in_array( $extension, array( 'zip', 'tgz', 'gz' ), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'File harus berupa arsip zip atau tgz.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', 512 );
+		if ( $size <= 0 || $size > $max_mb * MB_IN_BYTES ) {
+			wp_send_json_error(
+				/* translators: %d: maximum upload size in MB. */
+				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'offline-migrator-for-blogger' ), $max_mb ) )
+			);
+		}
+
+		// Potongan dijaga di bawah batas upload PHP agar tiap request diterima;
+		// minimal 1 MB dan maksimal 8 MB supaya jumlah request tetap masuk akal.
+		$chunk_size   = (int) max( MB_IN_BYTES, min( 8 * MB_IN_BYTES, floor( self::php_upload_limit_bytes() * 0.8 ) ) );
+		$total_chunks = (int) ceil( $size / $chunk_size );
+
+		$upload_dir = wp_upload_dir();
+		$upload_id  = wp_generate_password( 8, false, false );
+		$work_rel   = 'offline-migrator-for-blogger/upload-' . $upload_id;
+		$work       = trailingslashit( $upload_dir['basedir'] ) . $work_rel;
+		if ( ! wp_mkdir_p( $work ) ) {
+			wp_send_json_error( array( 'message' => __( 'Gagal membuat folder kerja di uploads.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$bmig_base = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger';
+		if ( ! file_exists( $bmig_base . '/index.php' ) ) {
+			file_put_contents( $bmig_base . '/index.php', '<?php // Silence is golden.' );
+		}
+
+		$state = array(
+			'upload_id'    => $upload_id,
+			'work_dir_rel' => $work_rel,
+			'filename'     => $filename,
+			'ext'          => 'gz' === $extension ? 'tgz' : $extension,
+			'total_size'   => $size,
+			'chunk_size'   => $chunk_size,
+			'received'     => 0,
+		);
+		update_option( self::OPTION_UPLOAD, $state, false );
+
+		wp_send_json_success(
+			array(
+				'upload_id'    => $upload_id,
+				'chunk_size'   => $chunk_size,
+				'total_chunks' => $total_chunks,
+			)
+		);
+	}
+
+	/**
+	 * Store one uploaded chunk as part-<index> in the session work directory.
+	 * Overwriting an existing part is allowed so failed chunks can be retried.
+	 */
+	public static function handle_chunk_upload() {
+		self::verify_request();
+		self::extend_limits();
+
+		$upload_id = isset( $_POST['upload_id'] ) ? sanitize_text_field( wp_unslash( $_POST['upload_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+		$index     = isset( $_POST['index'] ) ? (int) $_POST['index'] : -1; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+
+		$state = get_option( self::OPTION_UPLOAD );
+		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
+		if ( $index < 0 || $index >= $total_chunks ) {
+			wp_send_json_error( array( 'message' => __( 'Urutan potongan file tidak valid.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		if ( empty( $_FILES['chunk'] ) || ! isset( $_FILES['chunk']['error'] ) || UPLOAD_ERR_OK !== $_FILES['chunk']['error'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+			wp_send_json_error( array( 'message' => __( 'Potongan file gagal diunggah. Periksa batas upload PHP.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$file = $_FILES['chunk']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in self::verify_request(); raw chunk disimpan apa adanya dan digabung lalu divalidasi sebagai arsip.
+		if ( $file['size'] > $state['chunk_size'] ) {
+			wp_send_json_error( array( 'message' => __( 'Ukuran potongan file melebihi ukuran yang disepakati.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$work = self::upload_work_dir( $state );
+		if ( '' === $work ) {
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$dest  = $work . '/part-' . $index;
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.move_uploaded_file_move_uploaded_file -- Chunk bukan arsip final dan mime tidak relevan, jadi wp_handle_upload() tidak dipakai.
+		$moved = move_uploaded_file( $file['tmp_name'], $dest );
+		if ( ! $moved ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.copy_copy -- Fallback ketika move_uploaded_file gagal.
+			$moved = copy( $file['tmp_name'], $dest );
+		}
+		if ( ! $moved ) {
+			wp_send_json_error( array( 'message' => __( 'Gagal menyimpan potongan file.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$received          = count( (array) glob( $work . '/part-*' ) );
+		$state['received'] = $received;
+		update_option( self::OPTION_UPLOAD, $state, false );
+
+		wp_send_json_success(
+			array(
+				'received'     => $received,
+				'total_chunks' => $total_chunks,
+			)
+		);
+	}
+
+	/**
+	 * Verify every chunk arrived intact, merge the parts in order into
+	 * source.<ext>, then run the same validation and extraction as a regular
+	 * upload.
+	 */
+	public static function handle_chunk_finish() {
+		self::verify_request();
+		self::extend_limits();
+
+		$upload_id = isset( $_POST['upload_id'] ) ? sanitize_text_field( wp_unslash( $_POST['upload_id'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
+
+		$state = get_option( self::OPTION_UPLOAD );
+		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$work = self::upload_work_dir( $state );
+		if ( '' === $work ) {
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+		}
+
+		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
+		$bytes        = 0;
+		for ( $i = 0; $i < $total_chunks; $i++ ) {
+			$part = $work . '/part-' . $i;
+			if ( ! file_exists( $part ) ) {
+				wp_send_json_error(
+					array(
+						'message'      => __( 'Potongan file belum lengkap, coba lagi.', 'offline-migrator-for-blogger' ),
+						'received'     => count( (array) glob( $work . '/part-*' ) ),
+						'total_chunks' => $total_chunks,
+					)
+				);
+			}
+			$bytes += (int) filesize( $part );
+		}
+		if ( $bytes !== (int) $state['total_size'] ) {
+			wp_send_json_error(
+				array(
+					'message'      => __( 'Chunk belum lengkap atau korup.', 'offline-migrator-for-blogger' ),
+					'received'     => count( (array) glob( $work . '/part-*' ) ),
+					'total_chunks' => $total_chunks,
+				)
+			);
+		}
+
+		$source_path = $work . '/source.' . $state['ext'];
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Merge streaming; WP_Filesystem::put_contents() akan memuat seluruh arsip ke memori.
+		$out = fopen( $source_path, 'wb' );
+		if ( ! $out ) {
+			wp_send_json_error( array( 'message' => __( 'Gagal menggabungkan potongan file.', 'offline-migrator-for-blogger' ) ) );
+		}
+		for ( $i = 0; $i < $total_chunks; $i++ ) {
+			$part = $work . '/part-' . $i;
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- See fopen note above.
+			$in = fopen( $part, 'rb' );
+			if ( ! $in ) {
+				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
+				fclose( $out );
+				self::cleanup_work_dir( $work );
+				delete_option( self::OPTION_UPLOAD );
+				wp_send_json_error( array( 'message' => __( 'Chunk belum lengkap atau korup.', 'offline-migrator-for-blogger' ) ) );
+			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stream_copy_to_stream -- See fopen note above.
+			stream_copy_to_stream( $in, $out );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
+			fclose( $in );
+			wp_delete_file( $part );
+		}
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
+		fclose( $out );
+
+		// Sesi ditutup sebelum ekstrak agar kegagalan ekstrak tidak
+		// meninggalkan state sesi yang part-nya sudah dihapus dari disk.
+		delete_option( self::OPTION_UPLOAD );
+		self::extract_source( $source_path, $work );
+	}
+
+	/**
+	 * Validate the assembled archive, extract it into <work>/extract, then
+	 * answer with the blogs found. Shared by the single-request upload and the
+	 * chunked upload finish.
+	 *
+	 * @param string $source_path Archive path inside the work directory.
+	 * @param string $work        Work directory path.
+	 */
+	private static function extract_source( $source_path, $work ) {
 		$format = self::is_valid_archive( $source_path );
 		if ( ! $format ) {
 			self::cleanup_work_dir( $work );
@@ -194,8 +409,53 @@ class BMIG_Ajax {
 		}
 		wp_delete_file( $source_path );
 
-		$rel = ltrim( substr( $extract, strlen( trailingslashit( $upload_dir['basedir'] ) ) ), '/' );
+		$upload_dir = wp_upload_dir();
+		$rel        = ltrim( substr( $extract, strlen( trailingslashit( $upload_dir['basedir'] ) ) ), '/' );
 		self::respond_source( 'uploads', $rel, $extract );
+	}
+
+	/**
+	 * Effective PHP upload ceiling in bytes: the lower of upload_max_filesize
+	 * and post_max_size, falling back to 8 MB when ini values are unreadable.
+	 *
+	 * @return int
+	 */
+	private static function php_upload_limit_bytes() {
+		$limits = array();
+		foreach ( array( 'upload_max_filesize', 'post_max_size' ) as $key ) {
+			$bytes = wp_convert_hr_to_bytes( (string) ini_get( $key ) );
+			if ( $bytes > 0 ) {
+				$limits[] = $bytes;
+			}
+		}
+		if ( empty( $limits ) ) {
+			return 8 * MB_IN_BYTES;
+		}
+		return (int) min( $limits );
+	}
+
+	/**
+	 * Absolute path of a chunk upload session work directory, validated to
+	 * stay inside the uploads basedir. Empty when missing or malformed.
+	 *
+	 * @param array $state Upload session state.
+	 * @return string
+	 */
+	private static function upload_work_dir( array $state ) {
+		if ( empty( $state['work_dir_rel'] ) || ! is_string( $state['work_dir_rel'] ) ) {
+			return '';
+		}
+		$rel = trim( $state['work_dir_rel'], '/' );
+		if ( preg_match( '#(^|/)\.\.(/|$)#', $rel ) ) {
+			return '';
+		}
+		$upload = wp_upload_dir();
+		$base   = realpath( $upload['basedir'] );
+		$work   = realpath( trailingslashit( $upload['basedir'] ) . $rel );
+		if ( ! $base || ! $work || 0 !== strpos( $work, trailingslashit( $base ) ) || ! is_dir( $work ) ) {
+			return '';
+		}
+		return $work;
 	}
 
 	/**

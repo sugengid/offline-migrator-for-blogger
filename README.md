@@ -15,6 +15,7 @@ Unlike importers that require your old blog to stay online, Offline Migrator for
 - Redirect export (CSV/JSON) compatible with the [Redirection](https://wordpress.org/plugins/redirection/) plugin
 - Optional conversion of content HTML to Gutenberg blocks
 - Accepts `.zip` and `.tgz` Takeout archives
+- Chunked AJAX upload: large archives are split into small parts and reassembled server-side, so files larger than the host's `upload_max_filesize` still upload successfully
 - Chunked AJAX processing, safe for large feeds on shared hosting
 - Resumable jobs without content duplication
 
