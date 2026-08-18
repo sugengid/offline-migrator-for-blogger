@@ -4,7 +4,7 @@ Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,10 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.1 =
+* Chunked AJAX upload: large Takeout archives are split into small parts and reassembled server-side, so files larger than the host's upload_max_filesize still upload successfully.
+* Hourly cleanup of abandoned upload sessions.
 
 = 0.1.0 =
 * First release: feed.atom parser, content and comment importer, offline image migration from albums, two permalink modes with 301 redirects, chunked AJAX wizard with resume, zip/tgz support.
