@@ -21,7 +21,7 @@ class BMIG_Parser {
 	public function parse( $file_path ) {
 		if ( ! is_readable( $file_path ) ) {
 			/* translators: %s: absolute path of the feed file. */
-			return new WP_Error( 'bmig_feed_unreadable', sprintf( __( 'File feed tidak bisa dibaca: %s', 'offline-migrator-for-blogger' ), $file_path ) );
+			return new WP_Error( 'bmig_feed_unreadable', sprintf( __( 'File feed tidak bisa dibaca: %s', 'sugeng-offline-migrator-for-blogger' ), $file_path ) );
 		}
 
 		$previous = libxml_use_internal_errors( true );
@@ -29,7 +29,7 @@ class BMIG_Parser {
 		libxml_use_internal_errors( $previous );
 
 		if ( false === $xml ) {
-			return new WP_Error( 'bmig_feed_invalid', __( 'File feed bukan XML yang valid.', 'offline-migrator-for-blogger' ) );
+			return new WP_Error( 'bmig_feed_invalid', __( 'File feed bukan XML yang valid.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		$items = array();

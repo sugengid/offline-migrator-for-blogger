@@ -87,7 +87,7 @@ class BMIG_Media {
 	public function run( $albums_path, $blog_name = '' ) {
 		$albums_path = rtrim( (string) $albums_path, '/\\' );
 		if ( ! is_dir( $albums_path ) ) {
-			return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'offline-migrator-for-blogger' ) );
+			return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		$stats = array(
@@ -171,7 +171,7 @@ class BMIG_Media {
 		if ( $this->use_album ) {
 			$albums_path = rtrim( (string) $albums_path, '/\\' );
 			if ( ! is_dir( $albums_path ) ) {
-				return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'offline-migrator-for-blogger' ) );
+				return new WP_Error( 'bmig_media_no_dir', __( 'Folder album tidak ditemukan.', 'sugeng-offline-migrator-for-blogger' ) );
 			}
 
 			$stats = array( 'album_files' => 0 );
@@ -430,7 +430,7 @@ class BMIG_Media {
 				return;
 			}
 			if ( ! $this->use_external ) {
-				$stats['unmatched'][ $url ] = __( 'Host eksternal, file tidak ada di album.', 'offline-migrator-for-blogger' );
+				$stats['unmatched'][ $url ] = __( 'Host eksternal, file tidak ada di album.', 'sugeng-offline-migrator-for-blogger' );
 				return;
 			}
 		}
@@ -457,7 +457,7 @@ class BMIG_Media {
 		} else {
 			$attachment_id = $this->import_attachment( $path );
 			if ( ! $attachment_id ) {
-				$stats['import_errors'][ $url ] = __( 'Gagal mengimpor file ke media library.', 'offline-migrator-for-blogger' );
+				$stats['import_errors'][ $url ] = __( 'Gagal mengimpor file ke media library.', 'sugeng-offline-migrator-for-blogger' );
 				return;
 			}
 			add_post_meta( $attachment_id, '_bmig_source_url', $url );
@@ -498,7 +498,7 @@ class BMIG_Media {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
 		if ( ! self::is_external_url_safe( $url ) ) {
-			$stats['import_errors'][ $url ] = __( 'URL diblokir: host tidak diizinkan.', 'offline-migrator-for-blogger' );
+			$stats['import_errors'][ $url ] = __( 'URL diblokir: host tidak diizinkan.', 'sugeng-offline-migrator-for-blogger' );
 			return;
 		}
 
@@ -506,7 +506,7 @@ class BMIG_Media {
 		if ( is_wp_error( $tmp ) ) {
 			$stats['import_errors'][ $url ] = sprintf(
 				/* translators: %s: download error message */
-				__( 'Gagal mengunduh: %s', 'offline-migrator-for-blogger' ),
+				__( 'Gagal mengunduh: %s', 'sugeng-offline-migrator-for-blogger' ),
 				$tmp->get_error_message()
 			);
 			return;
@@ -515,7 +515,7 @@ class BMIG_Media {
 		$filetype = wp_check_filetype( $this->fname( $url ) );
 		if ( empty( $filetype['type'] ) || 0 !== strpos( $filetype['type'], 'image/' ) ) {
 			wp_delete_file( $tmp );
-			$stats['import_errors'][ $url ] = __( 'File hasil unduhan bukan gambar yang didukung.', 'offline-migrator-for-blogger' );
+			$stats['import_errors'][ $url ] = __( 'File hasil unduhan bukan gambar yang didukung.', 'sugeng-offline-migrator-for-blogger' );
 			return;
 		}
 
@@ -530,7 +530,7 @@ class BMIG_Media {
 			wp_delete_file( $tmp );
 			$stats['import_errors'][ $url ] = sprintf(
 				/* translators: %s: sideload error message */
-				__( 'Gagal menyimpan ke media library: %s', 'offline-migrator-for-blogger' ),
+				__( 'Gagal menyimpan ke media library: %s', 'sugeng-offline-migrator-for-blogger' ),
 				$attachment_id->get_error_message()
 			);
 			return;

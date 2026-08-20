@@ -1,10 +1,10 @@
-=== Offline Migrator for Blogger ===
+=== Sugeng Offline Migrator for Blogger ===
 Contributors: massugeng
 Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -12,9 +12,9 @@ Migrate Blogger to WordPress offline from Google Takeout. Content, images, comme
 
 == Description ==
 
-Offline Migrator for Blogger moves a Blogger blog to WordPress using only your Google Takeout backup files. Because everything is read from files, blogs that were deleted or locked can still be migrated.
+Sugeng Offline Migrator for Blogger moves a Blogger blog to WordPress using only your Google Takeout backup files. Because everything is read from files, blogs that were deleted or locked can still be migrated.
 
-Unlike importers that require your old blog to stay online, Offline Migrator for Blogger works fully offline. You download the Takeout archive once, upload it to the wizard, and the plugin does the rest: posts, pages, threaded comments, drafts, labels, images, and 301 redirects.
+Unlike importers that require your old blog to stay online, Sugeng Offline Migrator for Blogger works fully offline. You download the Takeout archive once, upload it to the wizard, and the plugin does the rest: posts, pages, threaded comments, drafts, labels, images, and 301 redirects.
 
 Key features:
 
@@ -30,9 +30,9 @@ Key features:
 
 == Installation ==
 
-1. Upload the `offline-migrator-for-blogger` folder to `/wp-content/plugins/`.
+1. Upload the `sugeng-offline-migrator-for-blogger` folder to `/wp-content/plugins/`.
 2. Activate the plugin through the Plugins menu.
-3. Open the Offline Migrator for Blogger menu in your dashboard.
+3. Open the Sugeng Offline Migrator for Blogger menu in your dashboard.
 4. Upload your Google Takeout archive (zip or tgz), choose the blog and permalink mode, then run the migration.
 
 How to get the Takeout file: open Google Takeout, select the Blogger product, export, then download the archive in zip or tgz format.
@@ -49,7 +49,7 @@ Mode A keeps the original Blogger URL structure (/2026/03/slug.html). Mode B use
 
 = How do redirects keep working after the plugin is removed? =
 
-Download the redirect export (CSV/JSON) from the Export redirect screen and import it into the Redirection plugin. While Offline Migrator for Blogger stays active, old URLs are redirected automatically without any extra plugin.
+Download the redirect export (CSV/JSON) from the Export redirect screen and import it into the Redirection plugin. While Sugeng Offline Migrator for Blogger stays active, old URLs are redirected automatically without any extra plugin.
 
 = Will existing content be deleted? =
 
@@ -67,6 +67,9 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.2 =
+* Plugin renamed to Sugeng Offline Migrator for Blogger with a distinctive name and updated text domain.
 
 = 0.1.1 =
 * Chunked AJAX upload: large Takeout archives are split into small parts and reassembled server-side, so files larger than the host's upload_max_filesize still upload successfully.

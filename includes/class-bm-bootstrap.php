@@ -1,6 +1,6 @@
 <?php
 /**
- * Bootstraps Offline Migrator for Blogger: loads core classes and registers hooks.
+ * Bootstraps Sugeng Offline Migrator for Blogger: loads core classes and registers hooks.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

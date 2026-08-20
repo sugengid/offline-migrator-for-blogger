@@ -59,7 +59,7 @@ class BMIG_Ajax {
 	private static function verify_request() {
 		check_ajax_referer( 'bmig_nonce', 'nonce' );
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Akses ditolak.', 'offline-migrator-for-blogger' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Akses ditolak.', 'sugeng-offline-migrator-for-blogger' ) ), 403 );
 		}
 	}
 
@@ -85,17 +85,17 @@ class BMIG_Ajax {
 		$path_input = isset( $_POST['takeout_path'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['takeout_path'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 		if ( '' !== $path_input ) {
 			if ( ! apply_filters( 'bmig_allow_path_input', false ) ) {
-				wp_send_json_error( array( 'message' => __( 'Input path dinonaktifkan.', 'offline-migrator-for-blogger' ) ), 403 );
+				wp_send_json_error( array( 'message' => __( 'Input path dinonaktifkan.', 'sugeng-offline-migrator-for-blogger' ) ), 403 );
 			}
 			$root = realpath( $path_input );
 			if ( ! $root || ! is_dir( $root ) ) {
-				wp_send_json_error( array( 'message' => __( 'Folder tidak ditemukan.', 'offline-migrator-for-blogger' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Folder tidak ditemukan.', 'sugeng-offline-migrator-for-blogger' ) ) );
 			}
 			self::respond_source( 'abs', $root, $root );
 		}
 
 		if ( empty( $_FILES['bmig_zip'] ) || ! isset( $_FILES['bmig_zip']['error'] ) || UPLOAD_ERR_OK !== $_FILES['bmig_zip']['error'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
-			wp_send_json_error( array( 'message' => __( 'Upload gagal. Periksa batas upload PHP dan ukuran file.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Upload gagal. Periksa batas upload PHP dan ukuran file.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$file = $_FILES['bmig_zip']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in self::verify_request(); archive handled by wp_handle_upload().
@@ -104,13 +104,13 @@ class BMIG_Ajax {
 		if ( $file['size'] > $max_mb * MB_IN_BYTES ) {
 			wp_send_json_error(
 				/* translators: %d: maximum upload size in MB. */
-				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'offline-migrator-for-blogger' ), $max_mb ) )
+				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'sugeng-offline-migrator-for-blogger' ), $max_mb ) )
 			);
 		}
 
 		$extension = strtolower( pathinfo( sanitize_file_name( $file['name'] ), PATHINFO_EXTENSION ) );
 		if ( ! in_array( $extension, array( 'zip', 'tgz', 'gz' ), true ) ) {
-			wp_send_json_error( array( 'message' => __( 'File harus berupa arsip zip atau tgz.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'File harus berupa arsip zip atau tgz.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -141,12 +141,12 @@ class BMIG_Ajax {
 		}
 
 		$upload_dir = wp_upload_dir();
-		$work       = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger/job-' . wp_generate_password( 8, false, false );
+		$work       = trailingslashit( $upload_dir['basedir'] ) . 'sugeng-offline-migrator-for-blogger/job-' . wp_generate_password( 8, false, false );
 		if ( ! wp_mkdir_p( $work ) ) {
-			wp_send_json_error( array( 'message' => __( 'Gagal membuat folder kerja di uploads.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Gagal membuat folder kerja di uploads.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
-		$bmig_base = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger';
+		$bmig_base = trailingslashit( $upload_dir['basedir'] ) . 'sugeng-offline-migrator-for-blogger';
 		if ( ! file_exists( $bmig_base . '/index.php' ) ) {
 			file_put_contents( $bmig_base . '/index.php', '<?php // Silence is golden.' );
 		}
@@ -164,7 +164,7 @@ class BMIG_Ajax {
 		}
 		if ( ! $moved ) {
 			self::cleanup_work_dir( $work );
-			wp_send_json_error( array( 'message' => __( 'Gagal memindahkan file upload.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Gagal memindahkan file upload.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		self::extract_source( $source_path, $work );
@@ -184,14 +184,14 @@ class BMIG_Ajax {
 
 		$extension = strtolower( pathinfo( $filename, PATHINFO_EXTENSION ) );
 		if ( ! in_array( $extension, array( 'zip', 'tgz', 'gz' ), true ) ) {
-			wp_send_json_error( array( 'message' => __( 'File harus berupa arsip zip atau tgz.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'File harus berupa arsip zip atau tgz.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', 512 );
 		if ( $size <= 0 || $size > $max_mb * MB_IN_BYTES ) {
 			wp_send_json_error(
 				/* translators: %d: maximum upload size in MB. */
-				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'offline-migrator-for-blogger' ), $max_mb ) )
+				array( 'message' => sprintf( __( 'Arsip melebihi batas %d MB.', 'sugeng-offline-migrator-for-blogger' ), $max_mb ) )
 			);
 		}
 
@@ -202,13 +202,13 @@ class BMIG_Ajax {
 
 		$upload_dir = wp_upload_dir();
 		$upload_id  = wp_generate_password( 8, false, false );
-		$work_rel   = 'offline-migrator-for-blogger/upload-' . $upload_id;
+		$work_rel   = 'sugeng-offline-migrator-for-blogger/upload-' . $upload_id;
 		$work       = trailingslashit( $upload_dir['basedir'] ) . $work_rel;
 		if ( ! wp_mkdir_p( $work ) ) {
-			wp_send_json_error( array( 'message' => __( 'Gagal membuat folder kerja di uploads.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Gagal membuat folder kerja di uploads.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
-		$bmig_base = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger';
+		$bmig_base = trailingslashit( $upload_dir['basedir'] ) . 'sugeng-offline-migrator-for-blogger';
 		if ( ! file_exists( $bmig_base . '/index.php' ) ) {
 			file_put_contents( $bmig_base . '/index.php', '<?php // Silence is golden.' );
 		}
@@ -247,26 +247,26 @@ class BMIG_Ajax {
 
 		$state = get_option( self::OPTION_UPLOAD );
 		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
-			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
 		if ( $index < 0 || $index >= $total_chunks ) {
-			wp_send_json_error( array( 'message' => __( 'Urutan potongan file tidak valid.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Urutan potongan file tidak valid.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		if ( empty( $_FILES['chunk'] ) || ! isset( $_FILES['chunk']['error'] ) || UPLOAD_ERR_OK !== $_FILES['chunk']['error'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
-			wp_send_json_error( array( 'message' => __( 'Potongan file gagal diunggah. Periksa batas upload PHP.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Potongan file gagal diunggah. Periksa batas upload PHP.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$file = $_FILES['chunk']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in self::verify_request(); raw chunk disimpan apa adanya dan digabung lalu divalidasi sebagai arsip.
 		if ( $file['size'] > $state['chunk_size'] ) {
-			wp_send_json_error( array( 'message' => __( 'Ukuran potongan file melebihi ukuran yang disepakati.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Ukuran potongan file melebihi ukuran yang disepakati.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$work = self::upload_work_dir( $state );
 		if ( '' === $work ) {
-			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$dest = $work . '/part-' . $index;
@@ -279,7 +279,7 @@ class BMIG_Ajax {
 			$moved = rename( $file['tmp_name'], $dest );
 		}
 		if ( ! $moved ) {
-			wp_send_json_error( array( 'message' => __( 'Gagal menyimpan potongan file.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Gagal menyimpan potongan file.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$received            = count( (array) glob( $work . '/part-*' ) );
@@ -308,12 +308,12 @@ class BMIG_Ajax {
 
 		$state = get_option( self::OPTION_UPLOAD );
 		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
-			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$work = self::upload_work_dir( $state );
 		if ( '' === $work ) {
-			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Sesi upload tidak valid, ulangi dari awal.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
@@ -323,7 +323,7 @@ class BMIG_Ajax {
 			if ( ! file_exists( $part ) ) {
 				wp_send_json_error(
 					array(
-						'message'      => __( 'Potongan file belum lengkap, coba lagi.', 'offline-migrator-for-blogger' ),
+						'message'      => __( 'Potongan file belum lengkap, coba lagi.', 'sugeng-offline-migrator-for-blogger' ),
 						'received'     => count( (array) glob( $work . '/part-*' ) ),
 						'total_chunks' => $total_chunks,
 					)
@@ -334,7 +334,7 @@ class BMIG_Ajax {
 		if ( $bytes !== (int) $state['total_size'] ) {
 			wp_send_json_error(
 				array(
-					'message'      => __( 'Chunk belum lengkap atau korup.', 'offline-migrator-for-blogger' ),
+					'message'      => __( 'Chunk belum lengkap atau korup.', 'sugeng-offline-migrator-for-blogger' ),
 					'received'     => count( (array) glob( $work . '/part-*' ) ),
 					'total_chunks' => $total_chunks,
 				)
@@ -345,7 +345,7 @@ class BMIG_Ajax {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Merge streaming; WP_Filesystem::put_contents() akan memuat seluruh arsip ke memori.
 		$out = fopen( $source_path, 'wb' );
 		if ( ! $out ) {
-			wp_send_json_error( array( 'message' => __( 'Gagal menggabungkan potongan file.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Gagal menggabungkan potongan file.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 		for ( $i = 0; $i < $total_chunks; $i++ ) {
 			$part = $work . '/part-' . $i;
@@ -356,7 +356,7 @@ class BMIG_Ajax {
 				fclose( $out );
 				self::cleanup_work_dir( $work );
 				delete_option( self::OPTION_UPLOAD );
-				wp_send_json_error( array( 'message' => __( 'Chunk belum lengkap atau korup.', 'offline-migrator-for-blogger' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Chunk belum lengkap atau korup.', 'sugeng-offline-migrator-for-blogger' ) ) );
 			}
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stream_copy_to_stream -- See fopen note above.
 			stream_copy_to_stream( $in, $out );
@@ -382,7 +382,7 @@ class BMIG_Ajax {
 		self::extend_limits();
 
 		$upload_dir = wp_upload_dir();
-		$bmig_base  = trailingslashit( $upload_dir['basedir'] ) . 'offline-migrator-for-blogger';
+		$bmig_base  = trailingslashit( $upload_dir['basedir'] ) . 'sugeng-offline-migrator-for-blogger';
 		$now        = time();
 
 		// Sesi yang state opsinya sudah melewati batas basi.
@@ -410,7 +410,7 @@ class BMIG_Ajax {
 		// Folder upload-* yatim: tidak dirujuk job aktif maupun sesi yang masih
 		// hidup, dan sudah lebih tua dari batas basi.
 		foreach ( (array) glob( $bmig_base . '/upload-*', GLOB_ONLYDIR ) as $folder ) {
-			$rel = 'offline-migrator-for-blogger/' . basename( $folder );
+			$rel = 'sugeng-offline-migrator-for-blogger/' . basename( $folder );
 			// Folder berisi hasil ekstrak berpotensi menjadi source job yang belum
 			// dicatat ke bmig_job; jangan hapus.
 			if ( is_dir( $folder . '/extract' ) ) {
@@ -443,14 +443,14 @@ class BMIG_Ajax {
 		if ( ! $format ) {
 			self::cleanup_work_dir( $work );
 			if ( 'tgz' === self::archive_format( $source_path ) && ! class_exists( 'PharData' ) ) {
-				wp_send_json_error( array( 'message' => __( 'Hosting tidak mendukung ekstraksi arsip tgz (PharData tidak tersedia). Unduh ulang Takeout dalam format zip lalu upload lagi.', 'offline-migrator-for-blogger' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Hosting tidak mendukung ekstraksi arsip tgz (PharData tidak tersedia). Unduh ulang Takeout dalam format zip lalu upload lagi.', 'sugeng-offline-migrator-for-blogger' ) ) );
 			}
-			wp_send_json_error( array( 'message' => __( 'File bukan arsip yang valid atau arsip korup. Unduh ulang file Takeout lalu coba lagi.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'File bukan arsip yang valid atau arsip korup. Unduh ulang file Takeout lalu coba lagi.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		if ( ! self::archive_entries_safe( $source_path, $format ) ) {
 			self::cleanup_work_dir( $work );
-			wp_send_json_error( array( 'message' => __( 'Arsip berisi path yang tidak aman atau tidak bisa dibaca.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Arsip berisi path yang tidak aman atau tidak bisa dibaca.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		WP_Filesystem();
@@ -468,7 +468,7 @@ class BMIG_Ajax {
 				$phar->extractTo( $extract );
 			} catch ( Throwable $e ) {
 				self::cleanup_work_dir( $work );
-				wp_send_json_error( array( 'message' => __( 'Arsip tgz tidak bisa diekstrak (korup atau format tidak didukung). Unduh ulang file Takeout lalu coba lagi.', 'offline-migrator-for-blogger' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Arsip tgz tidak bisa diekstrak (korup atau format tidak didukung). Unduh ulang file Takeout lalu coba lagi.', 'sugeng-offline-migrator-for-blogger' ) ) );
 			}
 		}
 		wp_delete_file( $source_path );
@@ -649,12 +649,12 @@ class BMIG_Ajax {
 	private static function respond_source( $type, $ref, $root ) {
 		$blogs_root = self::find_blogs_root( $root );
 		if ( ! $blogs_root ) {
-			wp_send_json_error( array( 'message' => __( 'Struktur Takeout tidak ditemukan (Blogs/*/feed.atom).', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Struktur Takeout tidak ditemukan (Blogs/*/feed.atom).', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$blogs = self::scan_blogs( $blogs_root );
 		if ( empty( $blogs ) ) {
-			wp_send_json_error( array( 'message' => __( 'Tidak ada feed.atom yang bisa dibaca di folder Blogs.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Tidak ada feed.atom yang bisa dibaca di folder Blogs.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		wp_send_json_success(
@@ -741,7 +741,7 @@ class BMIG_Ajax {
 				wp_send_json_success( array( 'reset' => true ) );
 				break;
 			default:
-				wp_send_json_error( array( 'message' => __( 'Aksi tidak dikenal.', 'offline-migrator-for-blogger' ) ) );
+				wp_send_json_error( array( 'message' => __( 'Aksi tidak dikenal.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 	}
 
@@ -766,7 +766,7 @@ class BMIG_Ajax {
 
 		$feed = self::feed_path( $root, $blogs_rel, $blog );
 		if ( ! $feed ) {
-			wp_send_json_error( array( 'message' => __( 'feed.atom tidak ditemukan untuk blog terpilih.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'feed.atom tidak ditemukan untuk blog terpilih.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$parser = new BMIG_Parser();
@@ -843,7 +843,7 @@ class BMIG_Ajax {
 		$blogs_rel      = isset( $_POST['blogs_rel'] ) ? sanitize_text_field( wp_unslash( $_POST['blogs_rel'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in self::verify_request().
 
 		if ( ! in_array( $mode, array( 'a', 'b' ), true ) ) {
-			wp_send_json_error( array( 'message' => __( 'Mode permalink tidak valid.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Mode permalink tidak valid.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$root = self::resolve_source_root( $type, $rel, $path );
@@ -855,7 +855,7 @@ class BMIG_Ajax {
 		if ( ! $feed ) {
 			wp_send_json_error(
 				/* translators: %s: blog folder name. */
-				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Pilih blog lain atau periksa isi zip Takeout.', 'offline-migrator-for-blogger' ), $blog ) )
+				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Pilih blog lain atau periksa isi zip Takeout.', 'sugeng-offline-migrator-for-blogger' ), $blog ) )
 			);
 		}
 
@@ -915,7 +915,7 @@ class BMIG_Ajax {
 			self::job_status(
 				$job,
 				/* translators: 1: number of feed entries, 2: blog name. */
-				array( sprintf( __( 'Job dimulai: %1$d entry feed untuk blog "%2$s".', 'offline-migrator-for-blogger' ), count( $items ), $blog ) )
+				array( sprintf( __( 'Job dimulai: %1$d entry feed untuk blog "%2$s".', 'sugeng-offline-migrator-for-blogger' ), count( $items ), $blog ) )
 			)
 		);
 	}
@@ -926,7 +926,7 @@ class BMIG_Ajax {
 	private static function step_run() {
 		$job = get_option( self::OPTION_JOB );
 		if ( ! is_array( $job ) || empty( $job['phase'] ) ) {
-			wp_send_json_error( array( 'message' => __( 'Tidak ada job aktif.', 'offline-migrator-for-blogger' ) ) );
+			wp_send_json_error( array( 'message' => __( 'Tidak ada job aktif.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
 		$log = array();
@@ -988,7 +988,7 @@ class BMIG_Ajax {
 
 		$log[] = sprintf(
 			/* translators: 1: processed entries, 2: total entries, 3: new in this batch, 4: skipped in this batch. */
-			__( 'Konten: %1$d/%2$d entry diproses (batch: %3$d baru, %4$d dilewati).', 'offline-migrator-for-blogger' ),
+			__( 'Konten: %1$d/%2$d entry diproses (batch: %3$d baru, %4$d dilewati).', 'sugeng-offline-migrator-for-blogger' ),
 			min( $job['cursor'], $job['total_items'] ),
 			$job['total_items'],
 			$stats['imported'],
@@ -998,7 +998,7 @@ class BMIG_Ajax {
 		if ( $job['cursor'] >= $job['total_items'] ) {
 			$job['phase']  = self::job_has_media( $job ) ? 'media' : 'redirect';
 			$job['cursor'] = 0;
-			$log[]         = __( 'Fase konten selesai.', 'offline-migrator-for-blogger' );
+			$log[]         = __( 'Fase konten selesai.', 'sugeng-offline-migrator-for-blogger' );
 		}
 		return $job;
 	}
@@ -1030,7 +1030,7 @@ class BMIG_Ajax {
 		$media    = new BMIG_Media();
 		$setup    = $media->setup( $albums, $job['blog'], $album, $external );
 		if ( is_wp_error( $setup ) ) {
-			$log[]         = $setup->get_error_message() . ' ' . __( 'Fase media dilewati.', 'offline-migrator-for-blogger' );
+			$log[]         = $setup->get_error_message() . ' ' . __( 'Fase media dilewati.', 'sugeng-offline-migrator-for-blogger' );
 			$job['phase']  = 'redirect';
 			$job['cursor'] = 0;
 			return $job;
@@ -1040,7 +1040,7 @@ class BMIG_Ajax {
 		$job['stats']['media']['candidates']  = $setup['candidates'];
 
 		if ( 0 === $setup['candidates'] ) {
-			$log[]         = __( 'Tidak ada URL gambar di konten hasil impor. Fase media dilewati.', 'offline-migrator-for-blogger' );
+			$log[]         = __( 'Tidak ada URL gambar di konten hasil impor. Fase media dilewati.', 'sugeng-offline-migrator-for-blogger' );
 			$job['phase']  = 'media_replace';
 			$job['cursor'] = 0;
 			return $job;
@@ -1057,7 +1057,7 @@ class BMIG_Ajax {
 
 		$log[] = sprintf(
 			/* translators: 1: processed candidates, 2: total candidates, 3: new attachments so far. */
-			__( 'Media: %1$d/%2$d kandidat gambar diproses (total %3$d attachment baru).', 'offline-migrator-for-blogger' ),
+			__( 'Media: %1$d/%2$d kandidat gambar diproses (total %3$d attachment baru).', 'sugeng-offline-migrator-for-blogger' ),
 			min( $job['cursor'], $setup['candidates'] ),
 			$setup['candidates'],
 			$job['stats']['media']['created']
@@ -1092,7 +1092,7 @@ class BMIG_Ajax {
 			);
 			$log[] = sprintf(
 				/* translators: %d: number of updated posts. */
-				__( 'Konversi blocks: %1$d konten diupdate.', 'offline-migrator-for-blogger' ),
+				__( 'Konversi blocks: %1$d konten diupdate.', 'sugeng-offline-migrator-for-blogger' ),
 				$updated
 			);
 		} else {
@@ -1102,7 +1102,7 @@ class BMIG_Ajax {
 			$job['stats']['replace'] = $stats;
 			$log[] = sprintf(
 				/* translators: 1: updated posts, 2: replaced URLs. */
-				__( 'Replace URL: %1$d konten diupdate, %2$d URL diganti.', 'offline-migrator-for-blogger' ),
+				__( 'Replace URL: %1$d konten diupdate, %2$d URL diganti.', 'sugeng-offline-migrator-for-blogger' ),
 				$stats['posts_updated'],
 				$stats['urls_replaced']
 			);
@@ -1135,7 +1135,7 @@ class BMIG_Ajax {
 
 		$log[] = sprintf(
 			/* translators: %s: redirect mode (A or B). */
-			__( 'Redirect mode %s aktif, rewrite rules di-flush.', 'offline-migrator-for-blogger' ),
+			__( 'Redirect mode %s aktif, rewrite rules di-flush.', 'sugeng-offline-migrator-for-blogger' ),
 			strtoupper( $job['mode'] )
 		);
 
@@ -1144,7 +1144,7 @@ class BMIG_Ajax {
 			if ( ! empty( $conflicts ) ) {
 				$log[] = sprintf(
 					/* translators: 1: number of conflicting slugs, 2: comma-separated list of conflicting slugs. */
-					__( 'Peringatan: %1$d slug post bentrok dengan halaman statis (%2$s). Halaman menang di routing; redirect tetap dipasang.', 'offline-migrator-for-blogger' ),
+					__( 'Peringatan: %1$d slug post bentrok dengan halaman statis (%2$s). Halaman menang di routing; redirect tetap dipasang.', 'sugeng-offline-migrator-for-blogger' ),
 					count( $conflicts ),
 					implode( ', ', $conflicts )
 				);
@@ -1338,7 +1338,7 @@ class BMIG_Ajax {
 	}
 
 	/**
-	 * Resolve the job work directory (uploads/offline-migrator-for-blogger/job-XXXX) from the
+	 * Resolve the job work directory (uploads/sugeng-offline-migrator-for-blogger/job-XXXX) from the
 	 * stored source reference and remove it. Only upload sources own a work
 	 * directory; dev path sources are left untouched.
 	 *
@@ -1363,11 +1363,11 @@ class BMIG_Ajax {
 			return '';
 		}
 		$parts = explode( '/', trim( $job['source']['rel'], '/' ) );
-		if ( count( $parts ) < 2 || 'offline-migrator-for-blogger' !== $parts[0] || preg_match( '#(^|/)\.\.(/|$)#', $parts[1] ) || false !== strpos( $parts[1], '/' ) ) {
+		if ( count( $parts ) < 2 || 'sugeng-offline-migrator-for-blogger' !== $parts[0] || preg_match( '#(^|/)\.\.(/|$)#', $parts[1] ) || false !== strpos( $parts[1], '/' ) ) {
 			return '';
 		}
 		$upload = wp_upload_dir();
-		return trailingslashit( $upload['basedir'] ) . 'offline-migrator-for-blogger/' . $parts[1];
+		return trailingslashit( $upload['basedir'] ) . 'sugeng-offline-migrator-for-blogger/' . $parts[1];
 	}
 
 	/**
@@ -1417,29 +1417,29 @@ class BMIG_Ajax {
 	private static function resolve_source_root( $type, $rel, $path ) {
 		if ( 'abs' === $type ) {
 			if ( ! apply_filters( 'bmig_allow_path_input', false ) ) {
-				return new WP_Error( 'bmig_path_disabled', __( 'Input path dinonaktifkan.', 'offline-migrator-for-blogger' ) );
+				return new WP_Error( 'bmig_path_disabled', __( 'Input path dinonaktifkan.', 'sugeng-offline-migrator-for-blogger' ) );
 			}
 			$root = realpath( $path );
 			if ( ! $root || ! is_dir( $root ) ) {
-				return new WP_Error( 'bmig_path_missing', __( 'Folder sumber tidak ditemukan.', 'offline-migrator-for-blogger' ) );
+				return new WP_Error( 'bmig_path_missing', __( 'Folder sumber tidak ditemukan.', 'sugeng-offline-migrator-for-blogger' ) );
 			}
 			return $root;
 		}
 
 		if ( 'uploads' !== $type ) {
-			return new WP_Error( 'bmig_source_type', __( 'Tipe sumber tidak valid.', 'offline-migrator-for-blogger' ) );
+			return new WP_Error( 'bmig_source_type', __( 'Tipe sumber tidak valid.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		$rel = trim( (string) $rel, '/' );
 		if ( '' === $rel || preg_match( '#(^|/)\.\.(/|$)#', $rel ) ) {
-			return new WP_Error( 'bmig_source_rel', __( 'Path sumber tidak valid.', 'offline-migrator-for-blogger' ) );
+			return new WP_Error( 'bmig_source_rel', __( 'Path sumber tidak valid.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		$upload = wp_upload_dir();
 		$base   = realpath( $upload['basedir'] );
 		$root   = realpath( trailingslashit( $upload['basedir'] ) . $rel );
 		if ( ! $base || ! $root || 0 !== strpos( $root, trailingslashit( $base ) ) || ! is_dir( $root ) ) {
-			return new WP_Error( 'bmig_source_missing', __( 'Folder hasil ekstrak tidak ditemukan.', 'offline-migrator-for-blogger' ) );
+			return new WP_Error( 'bmig_source_missing', __( 'Folder hasil ekstrak tidak ditemukan.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 		return $root;
 	}
@@ -1480,7 +1480,7 @@ class BMIG_Ajax {
 		if ( ! $feed ) {
 			wp_send_json_error(
 				/* translators: %s: blog folder name. */
-				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Folder sumber mungkin sudah berubah.', 'offline-migrator-for-blogger' ), $job['blog'] ) )
+				array( 'message' => sprintf( __( 'feed.atom tidak ditemukan di folder "%s". Folder sumber mungkin sudah berubah.', 'sugeng-offline-migrator-for-blogger' ), $job['blog'] ) )
 			);
 		}
 		return $feed;
