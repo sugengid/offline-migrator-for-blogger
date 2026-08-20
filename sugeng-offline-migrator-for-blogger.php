@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Sugeng Offline Migrator for Blogger
  * Description: Migrasi Blogger ke WordPress dari Google Takeout secara offline. Konten, gambar, komentar, dan redirect 301 dari backup, tanpa blog online.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Author: Sugeng.id
  * Author URI: https://sugeng.id
  * License: GPL-2.0-or-later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'BMIG_VERSION', '0.1.2' );
+define( 'BMIG_VERSION', '0.1.3' );
 define( 'BMIG_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BMIG_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
