@@ -25,7 +25,7 @@
 			return res.json();
 		} ).then( ( json ) => {
 			if ( ! json || ! json.success ) {
-				const message = json && json.data && json.data.message ? json.data.message : str( 'requestFailed', 'Request gagal.' );
+				const message = json && json.data && json.data.message ? json.data.message : str( 'requestFailed', 'Request failed.' );
 				throw new Error( message );
 			}
 			return json.data;
@@ -48,6 +48,16 @@
 		el.textContent = message;
 		el.hidden = false;
 		el.classList.toggle( 'bmig-error', !! isError );
+	}
+
+	function clearStatus() {
+		const el = byId( 'bmig-status' );
+		if ( ! el ) {
+			return;
+		}
+		el.textContent = '';
+		el.hidden = true;
+		el.classList.remove( 'bmig-error' );
 	}
 
 	function setProgress( percent ) {
@@ -142,13 +152,13 @@
 	function phaseLabel( phase ) {
 		switch ( phase ) {
 			case 'content':
-				return str( 'phaseContent', 'Mengimpor konten...' );
+				return str( 'phaseContent', 'Importing content...' );
 			case 'media':
-				return str( 'phaseMedia', 'Mengimpor gambar...' );
+				return str( 'phaseMedia', 'Importing images...' );
 			case 'media_replace':
-				return str( 'phaseReplace', 'Menyiapkan konten...' );
+				return str( 'phaseReplace', 'Preparing content...' );
 			case 'redirect':
-				return str( 'phaseRedirect', 'Menyiapkan redirect...' );
+				return str( 'phaseRedirect', 'Preparing redirects...' );
 			default:
 				return '';
 		}
@@ -174,7 +184,7 @@
 			const okBtn = document.createElement( 'button' );
 			okBtn.type = 'button';
 			okBtn.className = 'button button-primary';
-			okBtn.textContent = withCancel ? str( 'confirmProceed', 'Lanjutkan' ) : str( 'confirmOk', 'OK' );
+			okBtn.textContent = withCancel ? str( 'confirmProceed', 'Continue' ) : str( 'confirmOk', 'OK' );
 
 			function close( result ) {
 				document.body.removeChild( overlay );
@@ -189,7 +199,7 @@
 				const cancelBtn = document.createElement( 'button' );
 				cancelBtn.type = 'button';
 				cancelBtn.className = 'button';
-				cancelBtn.textContent = str( 'confirmCancel', 'Batal' );
+				cancelBtn.textContent = str( 'confirmCancel', 'Cancel' );
 				cancelBtn.addEventListener( 'click', function () {
 					close( false );
 				} );
@@ -234,7 +244,7 @@
 				}
 				setProgress( r.percent );
 				if ( r.done ) {
-					status( str( 'jobFinished', 'Migrasi selesai.' ) );
+					status( str( 'jobFinished', 'Migration finished.' ) );
 					renderReport( r.report );
 					window.location.reload();
 					break;
@@ -242,10 +252,10 @@
 			} catch ( err ) {
 				retries += 1;
 				if ( retries > 5 ) {
-					status( str( 'batchFailed', 'Batch gagal 5x berturut-turut.' ) + ' ' + err.message, true );
+					status( str( 'batchFailed', 'Batch failed 5 times in a row.' ) + ' ' + err.message, true );
 					break;
 				}
-				status( str( 'batchRetry', 'Batch error, coba ulang' ) + ' ' + retries + '/5: ' + err.message, true );
+				status( str( 'batchRetry', 'Batch error, retrying' ) + ' ' + retries + '/5: ' + err.message, true );
 				await new Promise( function ( resolve ) {
 					setTimeout( resolve, 2000 );
 				} );
@@ -306,7 +316,7 @@
 			} catch ( err ) {
 				attempt += 1;
 				if ( attempt >= 5 ) {
-					throw new Error( str( 'chunkUploadFailed', 'Gagal mengunggah potongan file' ) + ' ' + ( index + 1 ) + ': ' + err.message );
+					throw new Error( str( 'chunkUploadFailed', 'Failed to upload file chunk' ) + ' ' + ( index + 1 ) + ': ' + err.message );
 				}
 				await new Promise( function ( resolve ) {
 					setTimeout( resolve, 1000 * attempt );
@@ -316,14 +326,14 @@
 	}
 
 	async function uploadInChunks( zip ) {
-		status( str( 'chunkUploading', 'Mengunggah arsip (dipecah otomatis)...' ) );
+		status( str( 'chunkUploading', 'Uploading...' ) );
 		setUploadProgress( 0 );
 
 		let init;
 		try {
 			init = await ajax( 'bmig_chunk_init', { filename: zip.name, size: zip.size } );
 		} catch ( err ) {
-			throw new Error( str( 'chunkInitFailed', 'Gagal memulai upload chunk' ) + ': ' + err.message );
+			throw new Error( str( 'chunkInitFailed', 'Failed to start chunk upload' ) + ': ' + err.message );
 		}
 
 		const chunkSize = init.chunk_size;
@@ -350,7 +360,7 @@
 		try {
 			return await ajax( 'bmig_chunk_finish', { upload_id: init.upload_id } );
 		} catch ( err ) {
-			throw new Error( str( 'chunkFinishFailed', 'Gagal menyelesaikan upload' ) + ': ' + err.message );
+			throw new Error( str( 'chunkFinishFailed', 'Failed to finish upload' ) + ': ' + err.message );
 		}
 	}
 
@@ -370,17 +380,17 @@
 			let zip = null;
 			if ( ! usePath ) {
 				if ( ! fileInput.files.length ) {
-					status( str( 'pickZip', 'Pilih file arsip Takeout dulu.' ), true );
+					status( str( 'pickZip', 'Select a Takeout archive file first.' ), true );
 					return;
 				}
 				zip = fileInput.files[ 0 ];
 				const ext = zip.name.toLowerCase().split( '.' ).pop();
 				if ( [ 'zip', 'tgz', 'gz' ].indexOf( ext ) === -1 ) {
-					status( str( 'invalidType', 'File harus berupa arsip zip atau tgz.' ), true );
+					status( str( 'invalidType', 'File must be a zip or tgz archive.' ), true );
 					return;
 				}
 				if ( zip.size > cfg.maxZipMb * 1024 * 1024 ) {
-					status( str( 'zipTooLarge', 'Arsip melebihi batas plugin.' ) + ' (' + cfg.maxZipMb + ' MB)', true );
+					status( str( 'zipTooLarge', 'Archive exceeds the plugin limit.' ) + ' (' + cfg.maxZipMb + ' MB)', true );
 					return;
 				}
 			}
@@ -406,8 +416,9 @@
 				}
 				populateBlogs( data.blogs );
 				showStep( 2 );
+				clearStatus();
 			} catch ( err ) {
-				status( str( 'uploadFailed', 'Upload gagal' ) + ': ' + err.message, true );
+				status( str( 'uploadFailed', 'Upload failed' ) + ': ' + err.message, true );
 			}
 			button.disabled = false;
 			spinner.classList.remove( 'is-active' );
@@ -438,7 +449,7 @@
 			byId( 'bmig-sum-comments' ).textContent = data.comments;
 			byId( 'bmig-sum-images' ).textContent = data.images;
 		} catch ( err ) {
-			status( str( 'summaryFailed', 'Gagal memuat ringkasan blog.' ) + ': ' + err.message, true );
+			status( str( 'summaryFailed', 'Failed to load blog summary.' ) + ': ' + err.message, true );
 		}
 	}
 
@@ -460,15 +471,15 @@
 				return;
 			}
 			if ( ! state.source ) {
-				status( str( 'noSource', 'Sumber Takeout belum dipilih, ulangi dari langkah 1.' ), true );
+				status( str( 'noSource', 'No Takeout source selected, restart from step 1.' ), true );
 				return;
 			}
-			if ( cfg.job && ! cfg.job.done && ! ( await openModal( str( 'confirmPending', 'Job sebelumnya belum selesai. Mulai dari awal?' ), true ) ) ) {
+			if ( cfg.job && ! cfg.job.done && ! ( await openModal( str( 'confirmPending', 'A previous job is still unfinished. Start over?' ), true ) ) ) {
 				return;
 			}
 			const modeInput = document.querySelector( 'input[name="bmig_mode"]:checked' );
 			const mode = modeInput ? modeInput.value : 'a';
-			if ( ! ( await openModal( str( 'confirmMode', 'Mode ini mengubah struktur permalink situs. Lanjutkan?' ), true ) ) ) {
+			if ( ! ( await openModal( str( 'confirmMode', 'This mode changes the site permalink structure. Continue?' ), true ) ) ) {
 				return;
 			}
 			const mediaAlbum = byId( 'bmig-media-album' );
@@ -494,21 +505,21 @@
 				setProgress( r.percent );
 				runLoop();
 			} catch ( err ) {
-				status( str( 'startFailed', 'Gagal memulai job' ) + ': ' + err.message, true );
+				status( str( 'startFailed', 'Failed to start job' ) + ': ' + err.message, true );
 			}
 		} );
 	}
 
 	function initReset() {
 		byId( 'bmig-reset-btn' ).addEventListener( 'click', async function () {
-			if ( ! ( await openModal( str( 'confirmReset', 'State job akan dihapus. Lanjutkan?' ), true ) ) ) {
+			if ( ! ( await openModal( str( 'confirmReset', 'The job state will be cleared. Continue?' ), true ) ) ) {
 				return;
 			}
 			try {
 				await ajax( 'bmig_step', { step_action: 'reset' } );
 				window.location.reload();
 			} catch ( err ) {
-				status( str( 'resetFailed', 'Gagal reset job' ) + ': ' + err.message, true );
+				status( str( 'resetFailed', 'Failed to reset job' ) + ': ' + err.message, true );
 			}
 		} );
 	}
@@ -529,11 +540,11 @@
 		state.resumed = true;
 		const startBtn = byId( 'bmig-start-btn' );
 		state.startLabel = startBtn.textContent;
-		startBtn.textContent = str( 'resumeJob', 'Lanjutkan job' );
+		startBtn.textContent = str( 'resumeJob', 'Resume job' );
 		byId( 'bmig-progress' ).hidden = false;
 		byId( 'bmig-progress-label' ).hidden = false;
 		setProgress( cfg.job.percent || 0 );
-		status( str( 'resumedTo', 'Melanjutkan job dari fase:' ) + ' ' + phaseLabel( cfg.job.phase ) );
+		status( str( 'resumedTo', 'Resuming job from phase:' ) + ' ' + phaseLabel( cfg.job.phase ) );
 		showStep( 3 );
 	}
 
