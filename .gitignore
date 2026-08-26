@@ -6,3 +6,6 @@
 Thumbs.db
 AGENTS.md
 AGENTS.md
+
+# Translation sources live in translate.wordpress.org (not in the plugin package)
+languages/

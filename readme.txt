@@ -4,7 +4,7 @@ Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.3
+Stable tag: 0.1.4
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,10 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.4 =
+* Default interface language is now English for international users. Simplified wording for the upload limit explanation and upload button.
+* Foreign-language translations (including Indonesian) can now be contributed via translate.wordpress.org.
 
 = 0.1.3 =
 * Tested up to WordPress 7.1.
