@@ -32,7 +32,7 @@ Key features:
 
 1. Upload the `sugeng-offline-migrator-for-blogger` folder to `/wp-content/plugins/`.
 2. Activate the plugin through the Plugins menu.
-3. Open the Sugeng Offline Migrator for Blogger menu in your dashboard.
+3. Open Tools → Sugeng Offline Migrator for Blogger in your dashboard.
 4. Upload your Google Takeout archive (zip or tgz), choose the blog and permalink mode, then run the migration.
 
 How to get the Takeout file: open Google Takeout, select the Blogger product, export, then download the archive in zip or tgz format.
@@ -70,6 +70,8 @@ Only internal plugin options (job state and image mapping). Imported content sta
 
 = 0.1.4 =
 * Default interface language is now English for international users. Simplified wording for the upload limit explanation and upload button.
+* Plugin menu moved from the sidebar to Tools → Sugeng Offline Migrator for Blogger.
+* Upload status message now clears correctly after the upload finishes.
 * Foreign-language translations (including Indonesian) can now be contributed via translate.wordpress.org.
 
 = 0.1.3 =

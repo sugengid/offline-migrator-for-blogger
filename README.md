@@ -28,7 +28,7 @@ Unlike importers that require your old blog to stay online, Sugeng Offline Migra
 
 1. Upload the `sugeng-offline-migrator-for-blogger` folder to `/wp-content/plugins/`, or install the zip via Plugins → Add New → Upload.
 2. Activate the plugin.
-3. Open the **Sugeng Offline Migrator for Blogger** menu in your dashboard.
+3. Open **Tools → Sugeng Offline Migrator for Blogger** in your dashboard.
 4. Upload your Google Takeout archive (zip or tgz), choose the blog and permalink mode, then run the migration.
 
 To get the Takeout file: open [Google Takeout](https://takeout.google.com/), select the Blogger product, export, then download the archive in zip or tgz format.
@@ -41,7 +41,7 @@ After the migration, the report screen shows what was imported (posts, pages, co
 
 ## Translations
 
-When hosted on WordPress.org, translations are distributed automatically through translate.wordpress.org. UI strings default to Indonesian; sites running other locales receive the matching translation.
+When hosted on WordPress.org, translations are distributed automatically through translate.wordpress.org. UI strings default to English; sites running another locale receive the matching translation. Indonesian translations can be contributed via translate.wordpress.org.
 
 ## Screenshots
 
