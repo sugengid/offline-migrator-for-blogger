@@ -21,16 +21,15 @@ class BMIG_Admin {
 	}
 
 	/**
-	 * Add the top-level Sugeng Offline Migrator for Blogger menu.
+	 * Add the Sugeng Offline Migrator for Blogger menu under Tools.
 	 */
 	public static function register_menu() {
-		add_menu_page(
+		add_management_page(
 			'Sugeng Offline Migrator for Blogger',
-			'Sugeng Offline Migrator for Blogger',
+			'Migrator for Blogger',
 			'manage_options',
 			self::MENU_SLUG,
-			array( __CLASS__, 'render_page' ),
-			'dashicons-migrate'
+			array( __CLASS__, 'render_page' )
 		);
 	}
 
@@ -41,7 +40,7 @@ class BMIG_Admin {
 	 * @param string $hook Current admin page hook.
 	 */
 	public static function enqueue_assets( $hook ) {
-		if ( 'toplevel_page_' . self::MENU_SLUG !== $hook ) {
+		if ( 'tools_page_' . self::MENU_SLUG !== $hook ) {
 			return;
 		}
 
