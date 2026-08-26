@@ -25,8 +25,8 @@ class BMIG_Admin {
 	 */
 	public static function register_menu() {
 		add_management_page(
-			'Sugeng Offline Migrator for Blogger',
-			'Migrator for Blogger',
+			__( 'Sugeng Offline Migrator for Blogger', 'sugeng-offline-migrator-for-blogger' ),
+			__( 'Migrator for Blogger', 'sugeng-offline-migrator-for-blogger' ),
 			'manage_options',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -169,7 +169,7 @@ class BMIG_Admin {
 		$limit_mb   = self::php_upload_limit_mb();
 		?>
 		<div class="wrap bmig-wrap">
-			<h1>Sugeng Offline Migrator for Blogger</h1>
+			<h1><?php echo esc_html( __( 'Sugeng Offline Migrator for Blogger', 'sugeng-offline-migrator-for-blogger' ) ); ?></h1>
 
 			<?php if ( ! $job ) : ?>
 				<div class="bmig-intro">
