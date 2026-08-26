@@ -359,7 +359,7 @@ class BMIG_Admin {
 							<td id="bmig-r-matched"><?php echo esc_html( $r_matched ); ?></td>
 						</tr>
 						<tr>
-							<th scope="row"><?php esc_html_e( 'Images from album', 'sugeng-offline-migrator-for-blogger' ); ?></th>
+							<th scope="row"><?php esc_html_e( 'Images from Albums', 'sugeng-offline-migrator-for-blogger' ); ?></th>
 							<td id="bmig-r-album"><?php echo esc_html( $r_album ); ?></td>
 						</tr>
 						<tr>
@@ -399,7 +399,7 @@ class BMIG_Admin {
 						<?php endforeach; ?>
 					</ul>
 				</div>
-				<h3><?php esc_html_e( 'Image URLs not found in album', 'sugeng-offline-migrator-for-blogger' ); ?></h3>
+				<h3><?php esc_html_e( 'Image URLs not found in the Albums folder', 'sugeng-offline-migrator-for-blogger' ); ?></h3>
 				<p id="bmig-r-unmatched-empty"<?php echo $done && ! empty( $r_unmatched ) ? ' hidden' : ''; ?>><?php esc_html_e( 'All image URLs were mapped successfully.', 'sugeng-offline-migrator-for-blogger' ); ?></p>
 				<ul id="bmig-r-unmatched">
 					<?php foreach ( array_keys( $r_unmatched ) as $url ) : ?>

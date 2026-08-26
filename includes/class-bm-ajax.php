@@ -1092,7 +1092,7 @@ class BMIG_Ajax {
 			);
 			$log[] = sprintf(
 				/* translators: %d: number of updated posts. */
-				__( 'Block conversion: %1$d contents updated.', 'sugeng-offline-migrator-for-blogger' ),
+				__( 'Block conversion: %1$d content items updated.', 'sugeng-offline-migrator-for-blogger' ),
 				$updated
 			);
 		} else {
@@ -1102,7 +1102,7 @@ class BMIG_Ajax {
 			$job['stats']['replace'] = $stats;
 			$log[] = sprintf(
 				/* translators: 1: updated posts, 2: replaced URLs. */
-				__( 'URL replace: %1$d contents updated, %2$d URLs replaced.', 'sugeng-offline-migrator-for-blogger' ),
+				__( 'URL replace: %1$d content items updated, %2$d URLs replaced.', 'sugeng-offline-migrator-for-blogger' ),
 				$stats['posts_updated'],
 				$stats['urls_replaced']
 			);

@@ -430,7 +430,7 @@ class BMIG_Media {
 				return;
 			}
 			if ( ! $this->use_external ) {
-				$stats['unmatched'][ $url ] = __( 'External host, file not in album.', 'sugeng-offline-migrator-for-blogger' );
+				$stats['unmatched'][ $url ] = __( 'External host: file is not in the Albums folder.', 'sugeng-offline-migrator-for-blogger' );
 				return;
 			}
 		}
