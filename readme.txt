@@ -4,7 +4,7 @@ Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,14 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.5 =
+* Mode A redirect export and entry count now include posts whose filename date differs from their post date, matching the saved redirect rules.
+* Missing target posts and pages now fall through to WordPress 404 instead of redirecting permanently to a dead URL.
+* Migration report stays on screen after completion instead of reloading the page.
+* Comments whose parent post failed to import are now counted in the error total.
+* Uninstall now removes all plugin options.
+* Clearer file type validation message for non zip/tgz uploads.
 
 = 0.1.4 =
 * Default interface language is now English for international users. Simplified wording for the upload limit explanation and upload button.
