@@ -18,6 +18,7 @@ class BMIG_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'admin_post_bmig_export_redirects', array( __CLASS__, 'handle_export' ) );
+		add_filter( 'plugin_action_links_' . BMIG_PLUGIN_BASENAME, array( __CLASS__, 'add_settings_link' ) );
 	}
 
 	/**
@@ -31,6 +32,22 @@ class BMIG_Admin {
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
 		);
+	}
+
+	/**
+	 * Add a Settings link to the plugin row on the Plugins screen.
+	 *
+	 * @param array $links Existing action links.
+	 * @return array
+	 */
+	public static function add_settings_link( $links ) {
+		$settings_link = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'tools.php?page=' . self::MENU_SLUG ) ),
+			esc_html__( 'Settings', 'sugeng-offline-migrator-for-blogger' )
+		);
+		array_unshift( $links, $settings_link );
+		return $links;
 	}
 
 	/**

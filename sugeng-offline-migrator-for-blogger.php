@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'BMIG_VERSION', '0.1.5' );
 define( 'BMIG_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BMIG_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'BMIG_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 require_once BMIG_PLUGIN_DIR . 'includes/class-bm-bootstrap.php';
 
