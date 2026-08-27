@@ -70,6 +70,7 @@ class BMIG_Admin {
 				'strings'    => array(
 					'requestFailed'    => __( 'Request failed. Check your connection and try again.', 'sugeng-offline-migrator-for-blogger' ),
 					'pickZip'          => __( 'Select a Takeout archive file first.', 'sugeng-offline-migrator-for-blogger' ),
+					'invalidType'      => __( 'File must be a zip or tgz archive.', 'sugeng-offline-migrator-for-blogger' ),
 					'zipTooLarge'      => __( 'Archive exceeds the plugin limit.', 'sugeng-offline-migrator-for-blogger' ),
 					'zipOverPhpLimit'  => __( 'Archive size exceeds the single PHP upload limit, but that is fine because the file is split automatically into small chunks.', 'sugeng-offline-migrator-for-blogger' ),
 					'noSource'         => __( 'No Takeout source selected, restart from step 1.', 'sugeng-offline-migrator-for-blogger' ),
@@ -491,16 +492,6 @@ class BMIG_Admin {
 			wp_die( esc_html__( 'Access denied.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 		check_admin_referer( $nonce_action );
-	}
-
-	/**
-	 * Back to the plugin page, carrying result flags for the notice area.
-	 *
-	 * @param array $args Extra query args.
-	 */
-	private static function redirect_back( array $args = array() ) {
-		wp_safe_redirect( add_query_arg( array_merge( array( 'page' => self::MENU_SLUG ), $args ), admin_url( 'admin.php' ) ) );
-		exit;
 	}
 
 	/**

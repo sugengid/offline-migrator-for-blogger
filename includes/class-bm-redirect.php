@@ -78,7 +78,7 @@ class BMIG_Redirect {
 			if ( ! preg_match( '#^/(\d{4})/(\d{2})/([^/]+?\.html)$#', $row->filename, $m ) ) {
 				continue;
 			}
-			if ( substr( $row->post_date, 0, 7 ) === $m[1] . '-' . $m[2] ) {
+			if ( self::filename_matches_post_date( $row->filename, $row->post_date ) ) {
 				continue;
 			}
 			$rules[ '^' . $m[1] . '/' . $m[2] . '/' . preg_quote( $m[3], '/' ) . '$' ] = 'index.php?bmig_redirect_id=' . (int) $row->ID;
@@ -89,17 +89,30 @@ class BMIG_Redirect {
 	}
 
 	/**
-	 * Number of redirect entries currently available: posts/pages carrying a
-	 * Blogger filename plus the saved Mode A per-URL rules. Drives whether the
-	 * redirect manager is shown at all.
+	 * Whether the filename path date (YYYY/MM) of a Blogger post matches its
+	 * post_date. Matching posts resolve through the permalink structure itself,
+	 * so they need neither a per-URL rule nor an export entry.
+	 *
+	 * @param string $filename  Blogger filename path.
+	 * @param string $post_date Post date in site timezone.
+	 * @return bool
+	 */
+	private static function filename_matches_post_date( $filename, $post_date ) {
+		if ( ! preg_match( '#^/(\d{4})/(\d{2})/[^/]+?\.html$#', $filename, $m ) ) {
+			return false;
+		}
+		return substr( $post_date, 0, 7 ) === $m[1] . '-' . $m[2];
+	}
+
+	/**
+	 * Number of redirect entries currently available, matching what the export
+	 * produces. Drives whether the redirect manager is shown at all.
 	 *
 	 * @return int
 	 */
 	public static function data_count() {
 		if ( 'a' === get_option( self::OPTION_MODE, '' ) ) {
-			// Mode A: hanya halaman yang berubah URL, plus post dengan rule per-URL.
-			$saved = get_option( self::OPTION_MODE_A_RULES, array() );
-			return count( self::export_map() ) + ( is_array( $saved ) ? count( $saved ) : 0 );
+			return count( self::export_map() );
 		}
 
 		global $wpdb;
@@ -205,8 +218,9 @@ class BMIG_Redirect {
 
 	/**
 	 * Send the 301 for a matched redirect rule. The post permalink is resolved
-	 * live so target URLs follow the current permalink structure; when the
-	 * target no longer exists the Blogger pattern is rebuilt as a fallback.
+	 * live so target URLs follow the current permalink structure. When the
+	 * target no longer exists the request is left to WP, which handles the 404
+	 * without a permanent redirect to a missing URL.
 	 */
 	public static function handle_redirect() {
 		$post_id = (int) get_query_var( 'bmig_redirect_id' );
@@ -221,17 +235,21 @@ class BMIG_Redirect {
 		$slug = get_query_var( 'bmig_redirect_slug' );
 		if ( $slug ) {
 			$post = get_page_by_path( $slug, OBJECT, 'post' );
-			$url  = $post ? get_permalink( $post ) : home_url( user_trailingslashit( $slug ) );
-			wp_safe_redirect( $url, 301 );
-			exit;
+			if ( $post ) {
+				wp_safe_redirect( get_permalink( $post ), 301 );
+				exit;
+			}
+			// Post tidak ditemukan: biarkan request berlanjut agar WP menangani
+			// 404, karena 301 ke target yang tidak ada akan di-cache permanen.
 		}
 
 		$page_slug = get_query_var( 'bmig_redirect_page' );
 		if ( $page_slug ) {
 			$page = get_page_by_path( $page_slug, OBJECT, 'page' );
-			$url  = $page ? get_permalink( $page ) : home_url( user_trailingslashit( $page_slug ) );
-			wp_safe_redirect( $url, 301 );
-			exit;
+			if ( $page ) {
+				wp_safe_redirect( get_permalink( $page ), 301 );
+				exit;
+			}
 		}
 	}
 
@@ -263,9 +281,11 @@ class BMIG_Redirect {
 	}
 
 	/**
-	 * Combined old URL => new URL map for display: every imported post/page
-	 * carrying a Blogger filename (old path => current permalink). In mode A
-	 * posts keep their original URL, so only pages are listed.
+	 * Combined old URL => new URL map for display and export: every imported
+	 * post/page carrying a Blogger filename (old path => current permalink).
+	 * In mode A posts keep their original URL, so only pages and posts whose
+	 * filename date differs from their post date (the ones covered by the
+	 * per-URL rules) are listed.
 	 *
 	 * @return array<string, string>
 	 */
@@ -273,18 +293,21 @@ class BMIG_Redirect {
 		global $wpdb;
 
 		if ( 'a' === get_option( self::OPTION_MODE, '' ) ) {
-			// Mode A: post mempertahankan URL asli, hanya halaman yang berubah.
+			// Mode A: post mempertahankan URL asli kecuali tanggal filename beda
+			// dengan post_date; halaman selalu berubah URL.
 			$map  = array();
 			$rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Read-only lookup on a plugin-internal meta key.
-				"SELECT p.ID, m.meta_value AS filename
+				"SELECT p.ID, p.post_type, p.post_date, m.meta_value AS filename
 				FROM {$wpdb->posts} p
 				INNER JOIN {$wpdb->postmeta} m ON m.post_id = p.ID
 				WHERE m.meta_key = '_bmig_filename'
 					AND m.meta_value <> ''
-					AND p.post_type = 'page'
 					AND p.post_status = 'publish'"
 			);
 			foreach ( (array) $rows as $row ) {
+				if ( 'page' !== $row->post_type && self::filename_matches_post_date( $row->filename, $row->post_date ) ) {
+					continue;
+				}
 				$permalink = get_permalink( $row->ID );
 				if ( $permalink ) {
 					$map[ '/' . ltrim( $row->filename, '/' ) ] = $permalink;

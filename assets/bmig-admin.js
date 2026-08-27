@@ -246,7 +246,6 @@
 				if ( r.done ) {
 					status( str( 'jobFinished', 'Migration finished.' ) );
 					renderReport( r.report );
-					window.location.reload();
 					break;
 				}
 			} catch ( err ) {

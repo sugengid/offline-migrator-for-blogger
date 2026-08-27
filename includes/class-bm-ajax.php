@@ -115,15 +115,8 @@ class BMIG_Ajax {
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 
-		// Daftar mime bawaan situs hanya mengenal application/x-gzip, sedangkan
-		// finfo melaporkan application/gzip, jadi izinkan tipe ini khusus selama
-		// upload wizard berjalan.
-		$allow_gzip = function ( $mimes ) {
-			$mimes['tgz'] = 'application/gzip';
-			$mimes['gz']  = 'application/gzip';
-			return $mimes;
-		};
-		add_filter( 'upload_mimes', $allow_gzip );
+		// Daftar mime override eksplisit karena finfo melaporkan application/gzip
+		// sedangkan mime bawaan situs hanya mengenal application/x-gzip.
 		$uploaded = wp_handle_upload(
 			$file,
 			array(
@@ -135,7 +128,6 @@ class BMIG_Ajax {
 				),
 			)
 		);
-		remove_filter( 'upload_mimes', $allow_gzip );
 		if ( ! empty( $uploaded['error'] ) ) {
 			wp_send_json_error( array( 'message' => $uploaded['error'] ) );
 		}
@@ -980,11 +972,22 @@ class BMIG_Ajax {
 		$slice    = array_slice( $items, $job['cursor'], self::CONTENT_BATCH );
 		$importer = new BMIG_Importer();
 		$stats    = $importer->import_chunk( $slice );
+		$is_last  = $job['cursor'] + count( $slice ) >= $job['total_items'];
 
 		$job['stats']['content']['imported'] += $stats['imported'];
 		$job['stats']['content']['skipped']  += $stats['skipped'];
 		$job['stats']['content']['errors']   += $stats['errors'];
-		$job['cursor']                       += count( $slice );
+		if ( $is_last && $stats['deferred'] > 0 ) {
+			// Komentar defer sisa di batch terakhir tidak akan pernah terimport,
+			// hitung sebagai error agar terlihat di report.
+			$job['stats']['content']['errors'] += $stats['deferred'];
+			$log[] = sprintf(
+				/* translators: %d: number of comments not imported */
+				__( 'Content: %d comments could not be imported because their parent post failed.', 'sugeng-offline-migrator-for-blogger' ),
+				$stats['deferred']
+			);
+		}
+		$job['cursor'] += count( $slice );
 
 		$log[] = sprintf(
 			/* translators: 1: processed entries, 2: total entries, 3: new in this batch, 4: skipped in this batch. */

@@ -12,7 +12,7 @@ Unlike importers that require your old blog to stay online, Sugeng Offline Migra
 - Two permalink modes:
   - **Mode A** keeps the original Blogger URLs (`/2026/03/slug.html`)
   - **Mode B** uses new root URLs (`/slug/`) with automatic 301 redirects from the old URLs
-- Redirect export (CSV/JSON) compatible with the [Redirection](https://wordpress.org/plugins/redirection/) plugin
+- Redirect export (CSV/JSON) compatible with the [Redirection](https://wordpress.org/plugins/redirection/) plugin. In Mode A the export includes pages plus posts whose old URL would no longer match their date-based permalink.
 - Optional conversion of content HTML to Gutenberg blocks
 - Accepts `.zip` and `.tgz` Takeout archives
 - Chunked AJAX upload: large archives are split into small parts and reassembled server-side, so files larger than the host's `upload_max_filesize` still upload successfully
