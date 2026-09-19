@@ -35,7 +35,7 @@ To get the Takeout file: open [Google Takeout](https://takeout.google.com/), sel
 
 ## Usage
 
-The wizard guides you through three steps: upload the archive, pick the blog and permalink mode, then run the migration. Processing is chunked via AJAX with a live progress bar; if a batch fails you can reload the page and continue the job from where it left off.
+The wizard guides you through three steps: upload the archive, pick the blog and permalink mode, then run the migration. Processing is chunked via AJAX with a live progress bar; if a batch fails you can reload the page and continue the job from where it left off. The archive upload is chunked too: if the request that finishes the upload is interrupted, selecting the same file again continues from the archive already on the server instead of sending it again.
 
 After the migration, the report screen shows what was imported (posts, pages, comments, attachments, images) and the Export redirect section lists every old-to-new URL pair. Download the CSV/JSON export if you plan to manage redirects with the Redirection plugin and remove Sugeng Offline Migrator for Blogger afterwards.
 

@@ -18,6 +18,12 @@ class BMIG_Ajax {
 	// Umur maksimal sesi upload chunk tanpa aktivitas sebelum dibersihkan cron.
 	const UPLOAD_STALE_SECONDS = 3600;
 
+	// Fase sesi unggah: potongan masih masuk, atau sudah digabung menjadi
+	// source.<ext> dan siap diekstrak. Fase kedua membuat langkah "finish"
+	// bisa diulang tanpa mengunggah ulang arsip.
+	const UPLOAD_PHASE_CHUNKS = 'chunks';
+	const UPLOAD_PHASE_MERGED = 'merged';
+
 	/**
 	 * Register AJAX endpoints.
 	 */
@@ -72,6 +78,37 @@ class BMIG_Ajax {
 			@set_time_limit( 300 ); // phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- Intentional: give long migrations extra headroom when ini allows.
 		}
 		wp_raise_memory_limit( 'admin' );
+	}
+
+	/**
+	 * Answer a request that carries a session id the server does not know
+	 * (session replaced by a newer upload, expired, or already finished).
+	 * The code lets the browser stop retrying and show a clear message.
+	 */
+	private static function send_session_invalid() {
+		wp_send_json_error(
+			array(
+				'message' => __( 'Upload session is invalid, restart from the beginning.', 'sugeng-offline-migrator-for-blogger' ),
+				'code'    => 'bmig_session_invalid',
+			)
+		);
+	}
+
+	/**
+	 * Delete the stored upload session, but only while it still belongs to
+	 * $upload_id. Without this guard a request that finishes late can wipe the
+	 * session of an upload that started after it.
+	 *
+	 * @param string $upload_id Session id expected to be current.
+	 * @return bool True when the session was removed.
+	 */
+	private static function clear_upload_session( $upload_id ) {
+		$state = get_option( self::OPTION_UPLOAD );
+		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $state['upload_id'] !== $upload_id ) {
+			return false;
+		}
+		delete_option( self::OPTION_UPLOAD );
+		return true;
 	}
 
 	/**
@@ -159,7 +196,11 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Failed to move the upload file.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
-		self::extract_source( $source_path, $work );
+		$extracted = self::extract_source( $source_path, $work );
+		if ( isset( $extracted['error'] ) ) {
+			wp_send_json_error( array( 'message' => $extracted['error'] ) );
+		}
+		self::respond_source( 'uploads', $extracted['rel'], $extracted['root'] );
 	}
 
 	/**
@@ -185,6 +226,32 @@ class BMIG_Ajax {
 				/* translators: %d: maximum upload size in MB. */
 				array( 'message' => sprintf( __( 'Archive exceeds the %d MB limit.', 'sugeng-offline-migrator-for-blogger' ), $max_mb ) )
 			);
+		}
+
+		// Lanjutkan sesi yang arsipnya sudah utuh digabung: kalau langkah
+		// ekstrak sebelumnya gagal atau request-nya diputus hosting, berkas
+		// hasil gabungan masih ada dan tidak perlu diunggah ulang.
+		$existing = get_option( self::OPTION_UPLOAD );
+		if ( is_array( $existing )
+			&& ! empty( $existing['upload_id'] )
+			&& self::UPLOAD_PHASE_MERGED === ( isset( $existing['phase'] ) ? $existing['phase'] : '' )
+			&& isset( $existing['filename'], $existing['total_size'], $existing['ext'], $existing['chunk_size'] )
+			&& $existing['filename'] === $filename
+			&& (int) $existing['total_size'] === $size ) {
+			$resume_work   = self::upload_work_dir( $existing );
+			$resume_source = '' !== $resume_work ? $resume_work . '/source.' . $existing['ext'] : '';
+			if ( '' !== $resume_source && file_exists( $resume_source ) ) {
+				$existing['updated_at'] = time();
+				update_option( self::OPTION_UPLOAD, $existing, false );
+				wp_send_json_success(
+					array(
+						'upload_id'    => $existing['upload_id'],
+						'chunk_size'   => (int) $existing['chunk_size'],
+						'total_chunks' => (int) ceil( $size / max( 1, (int) $existing['chunk_size'] ) ),
+						'resume'       => true,
+					)
+				);
+			}
 		}
 
 		// Potongan dijaga di bawah batas upload PHP agar tiap request diterima;
@@ -213,6 +280,7 @@ class BMIG_Ajax {
 			'total_size'   => $size,
 			'chunk_size'   => $chunk_size,
 			'received'     => 0,
+			'phase'        => self::UPLOAD_PHASE_CHUNKS,
 			'updated_at'   => time(),
 		);
 		update_option( self::OPTION_UPLOAD, $state, false );
@@ -239,7 +307,7 @@ class BMIG_Ajax {
 
 		$state = get_option( self::OPTION_UPLOAD );
 		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
-			wp_send_json_error( array( 'message' => __( 'Upload session is invalid, restart from the beginning.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			self::send_session_invalid();
 		}
 
 		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
@@ -258,7 +326,7 @@ class BMIG_Ajax {
 
 		$work = self::upload_work_dir( $state );
 		if ( '' === $work ) {
-			wp_send_json_error( array( 'message' => __( 'Upload session is invalid, restart from the beginning.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			self::send_session_invalid();
 		}
 
 		$dest = $work . '/part-' . $index;
@@ -274,10 +342,17 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'Failed to save the file chunk.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
-		$received            = count( (array) glob( $work . '/part-*' ) );
-		$state['received']   = $received;
-		$state['updated_at'] = time();
-		update_option( self::OPTION_UPLOAD, $state, false );
+		$received = count( (array) glob( $work . '/part-*' ) );
+		// Baca ulang sebelum menulis: dua worker paralel bisa saling menimpa
+		// state, jadi hanya field hitungan yang diperbarui dan hanya bila
+		// sesinya masih sama (fase 'merged' dari finish yang berjalan
+		// bersamaan tidak boleh dikembalikan ke 'chunks').
+		$fresh = get_option( self::OPTION_UPLOAD );
+		if ( is_array( $fresh ) && isset( $fresh['upload_id'] ) && $fresh['upload_id'] === $upload_id ) {
+			$fresh['received']   = $received;
+			$fresh['updated_at'] = time();
+			update_option( self::OPTION_UPLOAD, $fresh, false );
+		}
 
 		wp_send_json_success(
 			array(
@@ -300,12 +375,69 @@ class BMIG_Ajax {
 
 		$state = get_option( self::OPTION_UPLOAD );
 		if ( ! is_array( $state ) || empty( $state['upload_id'] ) || $upload_id !== $state['upload_id'] ) {
-			wp_send_json_error( array( 'message' => __( 'Upload session is invalid, restart from the beginning.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			self::send_session_invalid();
 		}
 
 		$work = self::upload_work_dir( $state );
 		if ( '' === $work ) {
-			wp_send_json_error( array( 'message' => __( 'Upload session is invalid, restart from the beginning.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			self::send_session_invalid();
+		}
+
+		$phase       = isset( $state['phase'] ) ? $state['phase'] : self::UPLOAD_PHASE_CHUNKS;
+		$source_path = $work . '/source.' . $state['ext'];
+
+		if ( self::UPLOAD_PHASE_MERGED !== $phase ) {
+			$merged = self::merge_chunks( $state, $work );
+			if ( ! empty( $merged ) ) {
+				wp_send_json_error( $merged );
+			}
+			// Tandai sesi sudah digabung SEBELUM ekstraksi. Kalau ekstraksi
+			// gagal atau request-nya diputus hosting, tombol Upload dengan
+			// berkas yang sama akan melanjutkan ke tahap ekstrak tanpa
+			// mengunggah ulang arsipnya.
+			$state['phase']      = self::UPLOAD_PHASE_MERGED;
+			$state['updated_at'] = time();
+			update_option( self::OPTION_UPLOAD, $state, false );
+		} elseif ( ! file_exists( $source_path ) ) {
+			wp_send_json_error( array( 'message' => __( 'The merged archive is no longer available. Upload the Takeout archive again.', 'sugeng-offline-migrator-for-blogger' ) ) );
+		}
+
+		// Ekstraksi tidak menghapus sesi saat gagal, supaya langkah ini bisa
+		// diulang; sesi baru ditutup setelah seluruh proses sukses.
+		$extracted = self::extract_source( $source_path, $work, false );
+		if ( isset( $extracted['error'] ) ) {
+			wp_send_json_error(
+				array(
+					'message' => $extracted['error'],
+					'code'    => 'bmig_finish_retry',
+				)
+			);
+		}
+		$payload = self::build_source_response( 'uploads', $extracted['rel'], $extracted['root'] );
+		if ( isset( $payload['error'] ) ) {
+			wp_send_json_error( array( 'message' => $payload['error'] ) );
+		}
+		self::clear_upload_session( $upload_id );
+		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * Verify every chunk arrived intact and merge the parts in order into
+	 * source.<ext> inside the session work directory. Chunks are removed as
+	 * they are merged; the session state stays so a failed extraction can be
+	 * retried without uploading the archive again.
+	 *
+	 * @param array  $state Upload session state.
+	 * @param string $work  Absolute work directory path.
+	 * @return array Empty on success, otherwise a wp_send_json_error() payload.
+	 */
+	private static function merge_chunks( array $state, $work ) {
+		$source_path = $work . '/source.' . $state['ext'];
+		// Kalau percobaan sebelumnya sempat menggabungkan potongan lalu
+		// diputus sebelum fasenya tersimpan, berkas gabungannya sudah ada di
+		// disk: pakai itu dan lompati penggabungan.
+		if ( file_exists( $source_path ) && (int) filesize( $source_path ) === (int) $state['total_size'] ) {
+			return array();
 		}
 
 		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
@@ -313,23 +445,19 @@ class BMIG_Ajax {
 		for ( $i = 0; $i < $total_chunks; $i++ ) {
 			$part = $work . '/part-' . $i;
 			if ( ! file_exists( $part ) ) {
-				wp_send_json_error(
-					array(
-						'message'      => __( 'File chunks are incomplete, try again.', 'sugeng-offline-migrator-for-blogger' ),
-						'received'     => count( (array) glob( $work . '/part-*' ) ),
-						'total_chunks' => $total_chunks,
-					)
+				return array(
+					'message'      => __( 'File chunks are incomplete, try again.', 'sugeng-offline-migrator-for-blogger' ),
+					'received'     => count( (array) glob( $work . '/part-*' ) ),
+					'total_chunks' => $total_chunks,
 				);
 			}
 			$bytes += (int) filesize( $part );
 		}
 		if ( $bytes !== (int) $state['total_size'] ) {
-			wp_send_json_error(
-				array(
-					'message'      => __( 'Chunk is incomplete or corrupted.', 'sugeng-offline-migrator-for-blogger' ),
-					'received'     => count( (array) glob( $work . '/part-*' ) ),
-					'total_chunks' => $total_chunks,
-				)
+			return array(
+				'message'      => __( 'Chunk is incomplete or corrupted.', 'sugeng-offline-migrator-for-blogger' ),
+				'received'     => count( (array) glob( $work . '/part-*' ) ),
+				'total_chunks' => $total_chunks,
 			);
 		}
 
@@ -337,7 +465,7 @@ class BMIG_Ajax {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Merge streaming; WP_Filesystem::put_contents() akan memuat seluruh arsip ke memori.
 		$out = fopen( $source_path, 'wb' );
 		if ( ! $out ) {
-			wp_send_json_error( array( 'message' => __( 'Failed to merge the file chunks.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			return array( 'message' => __( 'Failed to merge the file chunks.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 		for ( $i = 0; $i < $total_chunks; $i++ ) {
 			$part = $work . '/part-' . $i;
@@ -346,9 +474,7 @@ class BMIG_Ajax {
 			if ( ! $in ) {
 				// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
 				fclose( $out );
-				self::cleanup_work_dir( $work );
-				delete_option( self::OPTION_UPLOAD );
-				wp_send_json_error( array( 'message' => __( 'Chunk is incomplete or corrupted.', 'sugeng-offline-migrator-for-blogger' ) ) );
+				return array( 'message' => __( 'Chunk is incomplete or corrupted.', 'sugeng-offline-migrator-for-blogger' ) );
 			}
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_stream_copy_to_stream -- See fopen note above.
 			stream_copy_to_stream( $in, $out );
@@ -359,10 +485,7 @@ class BMIG_Ajax {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- See fopen note above.
 		fclose( $out );
 
-		// Sesi ditutup sebelum ekstrak agar kegagalan ekstrak tidak
-		// meninggalkan state sesi yang part-nya sudah dihapus dari disk.
-		delete_option( self::OPTION_UPLOAD );
-		self::extract_source( $source_path, $work );
+		return array();
 	}
 
 	/**
@@ -384,7 +507,7 @@ class BMIG_Ajax {
 			if ( '' !== $work ) {
 				self::cleanup_work_dir( $work );
 			}
-			delete_option( self::OPTION_UPLOAD );
+			self::clear_upload_session( $state['upload_id'] );
 			$state = null;
 		}
 
@@ -423,26 +546,34 @@ class BMIG_Ajax {
 	}
 
 	/**
-	 * Validate the assembled archive, extract it into <work>/extract, then
-	 * answer with the blogs found. Shared by the single-request upload and the
-	 * chunked upload finish.
+	 * Validate the assembled archive and extract it into <work>/extract.
+	 * Shared by the single-request upload and the chunked upload finish.
 	 *
-	 * @param string $source_path Archive path inside the work directory.
-	 * @param string $work        Work directory path.
+	 * @param string $source_path       Archive path inside the work directory.
+	 * @param string $work              Work directory path.
+	 * @param bool   $cleanup_on_error  Delete the work directory when validation
+	 *                                  or extraction fails. The chunked upload
+	 *                                  passes false so a failed attempt can be
+	 *                                  retried without uploading again.
+	 * @return array {rel,root} on success, {error} otherwise.
 	 */
-	private static function extract_source( $source_path, $work ) {
+	private static function extract_source( $source_path, $work, $cleanup_on_error = true ) {
 		$format = self::is_valid_archive( $source_path );
 		if ( ! $format ) {
-			self::cleanup_work_dir( $work );
-			if ( 'tgz' === self::archive_format( $source_path ) && ! class_exists( 'PharData' ) ) {
-				wp_send_json_error( array( 'message' => __( 'Hosting does not support tgz archive extraction (PharData is unavailable). Download Takeout again as zip and upload it.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			if ( $cleanup_on_error ) {
+				self::cleanup_work_dir( $work );
 			}
-			wp_send_json_error( array( 'message' => __( 'File is not a valid archive or is corrupted. Download the Takeout file again and retry.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			if ( 'tgz' === self::archive_format( $source_path ) && ! class_exists( 'PharData' ) ) {
+				return array( 'error' => __( 'Hosting does not support tgz archive extraction (PharData is unavailable). Download Takeout again as zip and upload it.', 'sugeng-offline-migrator-for-blogger' ) );
+			}
+			return array( 'error' => __( 'File is not a valid archive or is corrupted. Download the Takeout file again and retry.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		if ( ! self::archive_entries_safe( $source_path, $format ) ) {
-			self::cleanup_work_dir( $work );
-			wp_send_json_error( array( 'message' => __( 'Archive contains an unsafe or unreadable path.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			if ( $cleanup_on_error ) {
+				self::cleanup_work_dir( $work );
+			}
+			return array( 'error' => __( 'Archive contains an unsafe or unreadable path.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		WP_Filesystem();
@@ -451,23 +582,30 @@ class BMIG_Ajax {
 		if ( 'zip' === $format ) {
 			$result = unzip_file( $source_path, $extract );
 			if ( is_wp_error( $result ) ) {
-				self::cleanup_work_dir( $work );
-				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+				if ( $cleanup_on_error ) {
+					self::cleanup_work_dir( $work );
+				}
+				return array( 'error' => $result->get_error_message() );
 			}
 		} else {
 			try {
 				$phar = new PharData( $source_path );
 				$phar->extractTo( $extract );
 			} catch ( Throwable $e ) {
-				self::cleanup_work_dir( $work );
-				wp_send_json_error( array( 'message' => __( 'The tgz archive could not be extracted (corrupted or unsupported format). Download the Takeout file again and retry.', 'sugeng-offline-migrator-for-blogger' ) ) );
+				if ( $cleanup_on_error ) {
+					self::cleanup_work_dir( $work );
+				}
+				return array( 'error' => __( 'The tgz archive could not be extracted (corrupted or unsupported format). Download the Takeout file again and retry.', 'sugeng-offline-migrator-for-blogger' ) );
 			}
 		}
 		wp_delete_file( $source_path );
 
 		$upload_dir = wp_upload_dir();
 		$rel        = ltrim( substr( $extract, strlen( trailingslashit( $upload_dir['basedir'] ) ) ), '/' );
-		self::respond_source( 'uploads', $rel, $extract );
+		return array(
+			'rel'  => $rel,
+			'root' => $extract,
+		);
 	}
 
 	/**
@@ -632,33 +770,47 @@ class BMIG_Ajax {
 	}
 
 	/**
-	 * Locate the Blogs directory, scan it, and answer the upload request.
+	 * Send the "blogs found" response for an extracted source.
 	 *
 	 * @param string $type Source type: 'uploads' or 'abs'.
 	 * @param string $ref  Path relative to the uploads basedir, or absolute for 'abs'.
 	 * @param string $root Absolute source root to scan.
 	 */
 	private static function respond_source( $type, $ref, $root ) {
+		$payload = self::build_source_response( $type, $ref, $root );
+		if ( isset( $payload['error'] ) ) {
+			wp_send_json_error( array( 'message' => $payload['error'] ) );
+		}
+		wp_send_json_success( $payload );
+	}
+
+	/**
+	 * Build the "blogs found" payload for an extracted source.
+	 *
+	 * @param string $type Source type: 'uploads' or 'abs'.
+	 * @param string $ref  Path relative to the uploads basedir, or absolute for 'abs'.
+	 * @param string $root Absolute source root to scan.
+	 * @return array Payload, or {error}.
+	 */
+	private static function build_source_response( $type, $ref, $root ) {
 		$blogs_root = self::find_blogs_root( $root );
 		if ( ! $blogs_root ) {
-			wp_send_json_error( array( 'message' => __( 'Takeout structure not found (Blogs/*/feed.atom).', 'sugeng-offline-migrator-for-blogger' ) ) );
+			return array( 'error' => __( 'Takeout structure not found (Blogs/*/feed.atom).', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
 		$blogs = self::scan_blogs( $blogs_root );
 		if ( empty( $blogs ) ) {
-			wp_send_json_error( array( 'message' => __( 'No readable feed.atom in the Blogs folder.', 'sugeng-offline-migrator-for-blogger' ) ) );
+			return array( 'error' => __( 'No readable feed.atom in the Blogs folder.', 'sugeng-offline-migrator-for-blogger' ) );
 		}
 
-		wp_send_json_success(
-			array(
-				'source'         => array(
-					'type' => $type,
-					'rel'  => 'uploads' === $type ? $ref : '',
-					'path' => 'abs' === $type ? $ref : '',
-				),
-				'blogs_root_rel' => ltrim( substr( $blogs_root, strlen( $root ) ), '/' ),
-				'blogs'          => $blogs,
-			)
+		return array(
+			'source'         => array(
+				'type' => $type,
+				'rel'  => 'uploads' === $type ? $ref : '',
+				'path' => 'abs' === $type ? $ref : '',
+			),
+			'blogs_root_rel' => ltrim( substr( $blogs_root, strlen( $root ) ), '/' ),
+			'blogs'          => $blogs,
 		);
 	}
 

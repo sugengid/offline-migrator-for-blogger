@@ -25,8 +25,13 @@
 			return res.json();
 		} ).then( ( json ) => {
 			if ( ! json || ! json.success ) {
-				const message = json && json.data && json.data.message ? json.data.message : str( 'requestFailed', 'Request failed.' );
-				throw new Error( message );
+				const data = ( json && json.data ) || {};
+				const message = data.message ? data.message : str( 'requestFailed', 'Request failed.' );
+				const error = new Error( message );
+				if ( data.code ) {
+					error.code = data.code;
+				}
+				throw error;
 			}
 			return json.data;
 		} );
@@ -313,6 +318,11 @@
 			try {
 				return await uploadChunk( zip, uploadId, chunkSize, index );
 			} catch ( err ) {
+				// Sesi di server sudah tidak ada: mengulang potongan tidak akan
+				// pernah berhasil, dan pesan "chunk gagal" menyesatkan.
+				if ( 'bmig_session_invalid' === err.code ) {
+					throw new Error( str( 'sessionLost', 'The upload was no longer active on the server. Select the file and upload again.' ) );
+				}
 				attempt += 1;
 				if ( attempt >= 5 ) {
 					throw new Error( str( 'chunkUploadFailed', 'Failed to upload file chunk' ) + ' ' + ( index + 1 ) + ': ' + err.message );
@@ -340,6 +350,14 @@
 		let next = 0;
 		let uploadedBytes = 0;
 
+		// Arsip sudah utuh di server dari percobaan sebelumnya (mis. langkah
+		// ekstrak gagal atau request-nya diputus hosting): lewati unggah
+		// potongan, langsung ke tahap finish.
+		if ( init.resume ) {
+			next = totalChunks;
+			setUploadProgress( 100 );
+		}
+
 		async function worker() {
 			while ( next < totalChunks ) {
 				const index = next;
@@ -359,6 +377,12 @@
 		try {
 			return await ajax( 'bmig_chunk_finish', { upload_id: init.upload_id } );
 		} catch ( err ) {
+			if ( 'bmig_session_invalid' === err.code ) {
+				throw new Error( str( 'sessionLost', 'The upload was no longer active on the server. Select the file and upload again.' ) );
+			}
+			if ( 'bmig_finish_retry' === err.code ) {
+				throw new Error( str( 'finishRetry', 'Finishing the upload failed. Select the same file and press Upload again to continue without re-uploading it.' ) + ' ' + err.message );
+			}
 			throw new Error( str( 'chunkFinishFailed', 'Failed to finish upload' ) + ': ' + err.message );
 		}
 	}

@@ -4,7 +4,7 @@ Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,13 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.6 =
+* Uploading no longer gets stuck when the server drops the request that finishes the upload: the archive stays on the server, and selecting the same file again continues from where it stopped instead of re-uploading everything.
+* A failed extraction keeps the upload session so the step can be retried, and the message now says what to do next.
+* The upload session is only cleared by the request that owns it, so a late or repeated request cannot wipe an upload in progress.
+* Chunk uploads no longer risk overwriting the session state when two chunks are sent at the same time.
+* When a session is really gone, the browser stops retrying every chunk and shows a single clear message.
 
 = 0.1.5 =
 * Mode A redirect export and entry count now include posts whose filename date differs from their post date, matching the saved redirect rules.
