@@ -81,7 +81,7 @@ class BMIG_Admin {
 				'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
 				'nonce'      => wp_create_nonce( 'bmig_nonce' ),
 				'homeUrl'    => home_url( '/' ),
-				'maxZipMb'   => (int) apply_filters( 'bmig_max_zip_mb', 512 ),
+				'maxZipMb'   => (int) apply_filters( 'bmig_max_zip_mb', BMIG_Ajax::MAX_ZIP_MB_DEFAULT ),
 				'phpLimitMb' => self::php_upload_limit_mb(),
 				'job'        => BMIG_Ajax::job_summary(),
 				'strings'    => array(

@@ -18,6 +18,12 @@ class BMIG_Ajax {
 	// Umur maksimal sesi upload chunk tanpa aktivitas sebelum dibersihkan cron.
 	const UPLOAD_STALE_SECONDS = 3600;
 
+	// Batas default ukuran arsip (MB). Bisa diubah lewat filter
+	// `bmig_max_zip_mb`; pemakaian disk saat ekstraksi kira-kira dua kali
+	// ukuran arsip, jadi naikkan hanya kalau hostingnya punya ruang dan
+	// waktu eksekusi yang cukup.
+	const MAX_ZIP_MB_DEFAULT = 1024;
+
 	// Fase sesi unggah: potongan masih masuk, atau sudah digabung menjadi
 	// source.<ext> dan siap diekstrak. Fase kedua membuat langkah "finish"
 	// bisa diulang tanpa mengunggah ulang arsip.
@@ -173,7 +179,7 @@ class BMIG_Ajax {
 
 		$file = $_FILES['bmig_zip']; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in self::verify_request(); archive handled by wp_handle_upload().
 
-		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', 512 );
+		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', self::MAX_ZIP_MB_DEFAULT );
 		if ( $file['size'] > $max_mb * MB_IN_BYTES ) {
 			wp_send_json_error(
 				/* translators: %d: maximum upload size in MB. */
@@ -256,7 +262,7 @@ class BMIG_Ajax {
 			wp_send_json_error( array( 'message' => __( 'File must be a zip or tgz archive.', 'sugeng-offline-migrator-for-blogger' ) ) );
 		}
 
-		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', 512 );
+		$max_mb = (int) apply_filters( 'bmig_max_zip_mb', self::MAX_ZIP_MB_DEFAULT );
 		if ( $size <= 0 || $size > $max_mb * MB_IN_BYTES ) {
 			wp_send_json_error(
 				/* translators: %d: maximum upload size in MB. */
