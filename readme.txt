@@ -4,7 +4,7 @@ Tags: blogger, migration, import, takeout, redirect
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.6
+Stable tag: 0.1.7
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,6 +67,9 @@ Only internal plugin options (job state and image mapping). Imported content sta
 4. Migration report and redirect export.
 
 == Changelog ==
+
+= 0.1.7 =
+* Resuming also works when the upload stopped before the chunks were merged: selecting the same file again continues from the parts already on the server instead of uploading the archive again.
 
 = 0.1.6 =
 * Uploading no longer gets stuck when the server drops the request that finishes the upload: the archive stays on the server, and selecting the same file again continues from where it stopped instead of re-uploading everything.

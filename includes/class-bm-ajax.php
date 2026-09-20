@@ -112,6 +112,42 @@ class BMIG_Ajax {
 	}
 
 	/**
+	 * Whether a stored session can go straight to the finish step: the merged
+	 * archive is complete on disk, or every chunk is still there. Used to
+	 * resume an upload whose finish request was dropped.
+	 *
+	 * @param array  $state Upload session state.
+	 * @param string $work  Absolute work directory path.
+	 * @return bool
+	 */
+	private static function session_ready_to_finish( array $state, $work ) {
+		if ( ! isset( $state['total_size'], $state['chunk_size'] ) ) {
+			return false;
+		}
+
+		if ( ! empty( $state['ext'] ) ) {
+			$source_path = $work . '/source.' . $state['ext'];
+			if ( file_exists( $source_path ) && (int) filesize( $source_path ) === (int) $state['total_size'] ) {
+				return true;
+			}
+		}
+
+		if ( (int) $state['chunk_size'] <= 0 ) {
+			return false;
+		}
+		$total_chunks = (int) ceil( $state['total_size'] / $state['chunk_size'] );
+		$bytes        = 0;
+		for ( $i = 0; $i < $total_chunks; $i++ ) {
+			$part = $work . '/part-' . $i;
+			if ( ! file_exists( $part ) ) {
+				return false;
+			}
+			$bytes += (int) filesize( $part );
+		}
+		return $bytes === (int) $state['total_size'];
+	}
+
+	/**
 	 * Handle the Takeout archive upload (or a dev-only folder path), extract
 	 * it, and return the blogs found inside.
 	 */
@@ -228,19 +264,18 @@ class BMIG_Ajax {
 			);
 		}
 
-		// Lanjutkan sesi yang arsipnya sudah utuh digabung: kalau langkah
+		// Lanjutkan sesi yang arsipnya sudah siap diproses: kalau langkah
 		// ekstrak sebelumnya gagal atau request-nya diputus hosting, berkas
-		// hasil gabungan masih ada dan tidak perlu diunggah ulang.
+		// hasil gabungan (atau seluruh potongan) masih ada dan tidak perlu
+		// diunggah ulang.
 		$existing = get_option( self::OPTION_UPLOAD );
 		if ( is_array( $existing )
 			&& ! empty( $existing['upload_id'] )
-			&& self::UPLOAD_PHASE_MERGED === ( isset( $existing['phase'] ) ? $existing['phase'] : '' )
-			&& isset( $existing['filename'], $existing['total_size'], $existing['ext'], $existing['chunk_size'] )
+			&& isset( $existing['filename'], $existing['total_size'], $existing['chunk_size'] )
 			&& $existing['filename'] === $filename
 			&& (int) $existing['total_size'] === $size ) {
-			$resume_work   = self::upload_work_dir( $existing );
-			$resume_source = '' !== $resume_work ? $resume_work . '/source.' . $existing['ext'] : '';
-			if ( '' !== $resume_source && file_exists( $resume_source ) ) {
+			$resume_work = self::upload_work_dir( $existing );
+			if ( '' !== $resume_work && self::session_ready_to_finish( $existing, $resume_work ) ) {
 				$existing['updated_at'] = time();
 				update_option( self::OPTION_UPLOAD, $existing, false );
 				wp_send_json_success(
